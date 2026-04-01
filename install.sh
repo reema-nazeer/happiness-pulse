@@ -21,75 +21,60 @@ fail() {
   exit 1
 }
 
-# Step 1: Xcode Command Line Tools
-echo "  [1/6] Checking developer tools..."
-if ! xcode-select -p &> /dev/null; then
-  echo "         Installing Xcode Command Line Tools..."
+# Step 1: Find Python 3
+echo "  [1/4] Checking Python..."
+
+PYTHON=""
+
+# Check Homebrew Python first (if they have it)
+if /opt/homebrew/bin/python3 --version &> /dev/null 2>&1; then
+  PYTHON="/opt/homebrew/bin/python3"
+# Check system Python from Xcode CLI tools
+elif /usr/bin/python3 --version &> /dev/null 2>&1; then
+  PYTHON="/usr/bin/python3"
+# Check generic python3 in PATH
+elif python3 --version &> /dev/null 2>&1; then
+  PYTHON="python3"
+fi
+
+if [ -z "$PYTHON" ]; then
+  echo "         Python not found. Installing Xcode tools..."
   echo "         A popup may appear - click Install and wait."
-  echo ""
   xcode-select --install 2>/dev/null
-  echo "         Waiting for install to complete..."
+  echo ""
+  echo "         Waiting for install to finish..."
   until xcode-select -p &> /dev/null; do
     sleep 5
   done
-  echo "         Developer tools installed ✓"
-else
-  echo "         Already installed ✓"
+  if /usr/bin/python3 --version &> /dev/null 2>&1; then
+    PYTHON="/usr/bin/python3"
+  else
+    fail "Python not available after Xcode tools install"
+  fi
 fi
 
-# Step 2: Homebrew
-echo ""
-echo "  [2/6] Checking Homebrew..."
-if command -v /opt/homebrew/bin/brew &> /dev/null; then
-  echo "         Already installed ✓"
-else
-  echo "         Installing Homebrew..."
-  echo ""
-  echo "  ⚠️  You may need to enter your Mac password below."
-  echo "     (Characters won't show as you type - that's normal)"
-  echo ""
-  NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" || fail "Homebrew install"
-  echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> "$HOME/.zprofile"
-  eval "$(/opt/homebrew/bin/brew shellenv)"
-  echo ""
-  echo "         Homebrew installed ✓"
-fi
+echo "         Found: $($PYTHON --version) ✓"
 
-# Make sure brew is in PATH for this session
-eval "$(/opt/homebrew/bin/brew shellenv)" 2>/dev/null
-
-# Step 3: Python
+# Step 2: Set up environment
 echo ""
-echo "  [3/6] Checking Python..."
-if /opt/homebrew/bin/python3 --version &> /dev/null; then
-  echo "         Already installed ✓"
-else
-  echo "         Installing Python (this takes a minute)..."
-  /opt/homebrew/bin/brew install python3 || fail "Python install"
-  echo "         Python installed ✓"
-fi
-
-# Step 4: Pulse app environment
-echo ""
-echo "  [4/6] Setting up Happiness Pulse..."
+echo "  [2/4] Setting up Happiness Pulse..."
 mkdir -p "$PULSE_DIR" || fail "Create folder"
 
 if [ ! -d "$PULSE_DIR/venv" ]; then
-  /opt/homebrew/bin/python3 -m venv "$PULSE_DIR/venv" || fail "Create Python environment"
+  $PYTHON -m venv "$PULSE_DIR/venv" || fail "Create Python environment"
 fi
 
 "$PULSE_DIR/venv/bin/pip" install --quiet pywebview || fail "Install pywebview"
 echo "         App environment ready ✓"
 
-# Step 5: Download files
+# Step 3: Download files
 echo ""
-echo "  [5/6] Downloading pulse files..."
+echo "  [3/4] Downloading pulse files..."
 curl -sL "$BASE/pulse-form.html" -o "$PULSE_DIR/pulse-form.html" || fail "Download pulse-form.html"
 curl -sL "$BASE/launch.py" -o "$PULSE_DIR/launch.py" || fail "Download launch.py"
 curl -sL "$BASE/pulse.sh" -o "$PULSE_DIR/pulse.sh" || fail "Download pulse.sh"
 chmod +x "$PULSE_DIR/pulse.sh"
 
-# Verify files downloaded properly
 if [ ! -s "$PULSE_DIR/pulse-form.html" ]; then
   fail "pulse-form.html is empty - check internet connection"
 fi
@@ -99,9 +84,9 @@ fi
 
 echo "         Files downloaded ✓"
 
-# Step 6: LaunchAgent
+# Step 4: LaunchAgent
 echo ""
-echo "  [6/6] Setting up daily trigger..."
+echo "  [4/4] Setting up daily trigger..."
 
 mkdir -p "$HOME/Library/LaunchAgents"
 
@@ -130,7 +115,6 @@ launchctl unload "$AGENT" 2>/dev/null
 launchctl load "$AGENT" || fail "Load LaunchAgent"
 echo "         Daily trigger active ✓"
 
-# Clear any existing flag so they can test
 rm -f /tmp/homey-pulse-*
 
 echo ""
