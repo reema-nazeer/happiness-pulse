@@ -26,13 +26,10 @@ echo "  [1/4] Checking Python..."
 
 PYTHON=""
 
-# Check Homebrew Python first (if they have it)
 if /opt/homebrew/bin/python3 --version &> /dev/null 2>&1; then
   PYTHON="/opt/homebrew/bin/python3"
-# Check system Python from Xcode CLI tools
 elif /usr/bin/python3 --version &> /dev/null 2>&1; then
   PYTHON="/usr/bin/python3"
-# Check generic python3 in PATH
 elif python3 --version &> /dev/null 2>&1; then
   PYTHON="python3"
 fi
@@ -64,6 +61,10 @@ if [ ! -d "$PULSE_DIR/venv" ]; then
   $PYTHON -m venv "$PULSE_DIR/venv" || fail "Create Python environment"
 fi
 
+echo "         Upgrading package manager..."
+"$PULSE_DIR/venv/bin/python3" -m pip install --upgrade pip --quiet || fail "Upgrade pip"
+
+echo "         Installing app components (this may take a few minutes)..."
 "$PULSE_DIR/venv/bin/pip" install --quiet pywebview || fail "Install pywebview"
 echo "         App environment ready ✓"
 
