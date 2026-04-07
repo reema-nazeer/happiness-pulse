@@ -9,6 +9,7 @@ echo ""
 PULSE_DIR="$HOME/homey-pulse"
 AGENT="$HOME/Library/LaunchAgents/uk.co.homey.pulse.plist"
 BASE="https://raw.githubusercontent.com/reema-nazeer/happiness-pulse/main"
+WEBHOOK="https://script.google.com/macros/s/AKfycbwLzElxQ74DOCTOMgAi0eqzXR0P1kWrADLcL7eb6yAdTBo6Y037jNfaduBB3yiAc0VW/exec"
 
 fail() {
   echo ""
@@ -55,7 +56,8 @@ echo "         Found: $($PYTHON --version) ✓"
 # Step 2: Set up environment
 echo ""
 echo "  [2/4] Setting up Happiness Pulse..."
-mkdir -p "$PULSE_DIR" || fail "Create folder"
+mkdir -p "$PULSE_DIR"
+mkdir -p "$PULSE_DIR/flags"
 
 if [ ! -d "$PULSE_DIR/venv" ]; then
   $PYTHON -m venv "$PULSE_DIR/venv" || fail "Create Python environment"
@@ -116,7 +118,12 @@ launchctl unload "$AGENT" 2>/dev/null
 launchctl load "$AGENT" || fail "Load LaunchAgent"
 echo "         Daily trigger active ✓"
 
+# Clean up old flags
 rm -f /tmp/homey-pulse-*
+rm -f "$PULSE_DIR/flags/"*
+
+# Track install
+curl -sL -X POST "$WEBHOOK" -H "Content-Type: text/plain" -d "{\"type\":\"install\",\"username\":\"$(whoami)\",\"source\":\"fresh-install\"}" > /dev/null 2>&1
 
 echo ""
 echo "  ==========================================="
