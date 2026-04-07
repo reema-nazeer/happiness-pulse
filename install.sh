@@ -9,7 +9,7 @@ echo ""
 PULSE_DIR="$HOME/homey-pulse"
 AGENT="$HOME/Library/LaunchAgents/uk.co.homey.pulse.plist"
 BASE="https://raw.githubusercontent.com/reema-nazeer/happiness-pulse/main"
-WEBHOOK="https://script.google.com/macros/s/AKfycbwLzElxQ74DOCTOMgAi0eqzXR0P1kWrADLcL7eb6yAdTBo6Y037jNfaduBB3yiAc0VW/exec"
+WEBHOOK="https://script.google.com/macros/s/AKfycbxE6GyN8jsybwc3_1hC2irErQeKO9Yu-j8hgglVXaHuPK8vsdDJwSMJbC2J7eOzsy7g/exec"
 
 fail() {
   echo ""
