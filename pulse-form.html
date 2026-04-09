@@ -15,6 +15,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Helvetica Ne
 .header p{font-size:13px;color:rgba(255,255,255,.5)}
 .body{padding:24px 36px 28px;flex:1;display:flex;flex-direction:column}
 .ql{font-size:15px;font-weight:600;color:#040406;display:block;margin-bottom:14px}
+.ol{font-weight:400;color:#aaa}
 .emoji-display{text-align:center;margin-bottom:6px;font-size:52px;transition:all .2s ease}
 .slider-row{display:flex;align-items:center;gap:14px;margin-bottom:4px}
 .slider-row span{font-size:13px;color:#bbb;min-width:16px}
@@ -84,7 +85,7 @@ textarea::placeholder{color:#ccc}
 </div>
 
 <script>
-var WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxE6GyN8jsybwc3_1hC2irErQeKO9Yu-j8hgglVXaHuPK8vsdDJwSMJbC2J7eOzsy7g/exec";
+var WEBHOOK_URL = "__WEBHOOK_URL__";
 var sl = document.getElementById("sl");
 var sv = document.getElementById("sv");
 var em = document.getElementById("emoji");
@@ -144,6 +145,12 @@ function showThanks() {
 }
 
 sb.addEventListener("click", function() {
+  if (!/^https:\/\/.+/i.test(WEBHOOK_URL)) {
+    sb.disabled = true;
+    sb.style.background = "#999999";
+    sb.textContent = "Webhook not configured";
+    return;
+  }
   sb.disabled = true;
   sb.style.background = "#5A3BD4";
   sb.textContent = "Sending...";
