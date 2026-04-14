@@ -181,12 +181,19 @@ jobs:
           name: HappinessPulse-x86_64
           path: dist
 
+      - name: Verify release files exist
+        run: |
+          set -euo pipefail
+          ls -R dist
+          test -f dist/HappinessPulse-arm64.zip
+          test -f dist/HappinessPulse-arm64.zip.sha256
+          test -f dist/HappinessPulse-x86_64.zip
+          test -f dist/HappinessPulse-x86_64.zip.sha256
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/HappinessPulse-arm64.zip
-            dist/HappinessPulse-arm64.zip.sha256
-            dist/HappinessPulse-x86_64.zip
-            dist/HappinessPulse-x86_64.zip.sha256
+            dist/**/*.zip
+            dist/**/*.zip.sha256
           generate_release_notes: true
