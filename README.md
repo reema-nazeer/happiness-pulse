@@ -30,4 +30,3 @@ TODO: Fill in implementation details for app logic, launch flow, install/update 
   - macOS app can send secret with `HOMEY_PULSE_WEBHOOK_SECRET` env var.
 - Test flags:
   - `HappinessPulse --test` bypasses weekday/time/flag checks.
-  - `HappinessPulse --test-first-launch` clears `.registered` and opens first-launch flow.

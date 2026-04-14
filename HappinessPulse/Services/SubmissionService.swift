@@ -12,16 +12,6 @@ final class SubmissionService {
         let secret: String?
     }
 
-    private struct RegistrationPayload: Codable {
-        let type: String
-        let name: String
-        let timestamp: String
-        let version: String
-        let arch: String
-        let os: String
-        let secret: String?
-    }
-
     private let webhookURL = URL(string: "https://script.google.com/macros/s/AKfycbxE6GyN8jsybwc3_1hC2irErQeKO9Yu-j8hgglVXaHuPK8vsdDJwSMJbC2J7eOzsy7g/exec")
     private let logger = PulseLogger.shared
     private let fileManager = FileManager.default
@@ -83,31 +73,6 @@ final class SubmissionService {
         } catch {
             queuePendingSubmission(Data())
             completion(.failure(error))
-        }
-    }
-
-    func submitRegistration(name: String, completion: @escaping () -> Void) {
-        guard let webhookURL else {
-            completion()
-            return
-        }
-
-        let payload = RegistrationPayload(
-            type: "registration",
-            name: name,
-            timestamp: ISO8601DateFormatter().string(from: nowProvider()),
-            version: "2.0.0",
-            arch: ProcessInfo.processInfo.machineArchitecture,
-            os: ProcessInfo.processInfo.shortOSVersion,
-            secret: webhookSecret
-        )
-
-        let body = (try? encoder.encode(payload)) ?? Data()
-        executePost(webhookURL: webhookURL, body: body) { [weak self] result in
-            if case let .failure(error) = result {
-                self?.logger.error("Registration webhook failed: \(error.localizedDescription)")
-            }
-            completion()
         }
     }
 

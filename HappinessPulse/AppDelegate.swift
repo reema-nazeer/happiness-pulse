@@ -6,7 +6,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let pulseState = PulseState()
     private let logger = PulseLogger.shared
     private let submissionService = SubmissionService()
-    private let registrationService = FirstLaunchRegistrationService()
     private let fileManager = FileManager.default
 
     private let overlayController = PulseOverlayWindowController()
@@ -16,10 +15,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var baseDirectory: URL = {
         fileManager.homeDirectoryForCurrentUser.appendingPathComponent("homey-pulse", isDirectory: true)
     }()
-    private lazy var registeredFileURL: URL = {
-        baseDirectory.appendingPathComponent(".registered")
-    }()
-
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
 
@@ -27,7 +22,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             try fileManager.createDirectory(at: baseDirectory, withIntermediateDirectories: true)
             detectTranslocation()
             pulseState.cleanupFlags()
-            applyTestFlagsIfNeeded()
 
             if !isTestingBypassEnabled(), pulseState.hasSubmittedToday() {
                 terminateSilently()
@@ -44,11 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             submissionService.retryPendingSubmissions { [weak self] in
                 DispatchQueue.main.async {
                     guard let self else { return }
-                    if self.isRegistered() {
-                        self.showPulseCard()
-                    } else {
-                        self.showFirstLaunch()
-                    }
+                    self.showPulseCard()
                 }
             }
         } catch {
@@ -65,33 +55,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard !pulseState.hasSubmittedToday() else { return }
         guard pulseState.shouldShow(lockIsAvailable: singleInstanceLock.lockAcquired) else { return }
         guard !showingUI else { return }
-
-        if isRegistered() {
-            showPulseCard()
-        } else {
-            showFirstLaunch()
-        }
-    }
-
-    private func showFirstLaunch() {
-        showingUI = true
-        let view = FirstLaunchView { [weak self] name in
-            self?.registerEmployee(name: name)
-        }
-        overlayController.present(content: AnyView(view))
+        showPulseCard()
     }
 
     private func showPulseCard() {
         showingUI = true
-        let name = readRegisteredName() ?? ""
-        let view = PulseCardView(employeeName: name) { [weak self] score, feedback, done in
+        let view = PulseCardView { [weak self] score, feedback, done in
             self?.submit(score: score, feedback: feedback, done: done)
         }
-        if isRegistered() {
-            overlayController.transition(content: AnyView(view))
-        } else {
-            overlayController.present(content: AnyView(view))
-        }
+        overlayController.present(content: AnyView(view))
     }
 
     private func showConfirmationAndExit() {
@@ -126,35 +98,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func registerEmployee(name: String) {
-        do {
-            try registrationService.completeRegistration(name: name, registeredFileURL: registeredFileURL)
-            logger.info("Employee registration completed")
-            showPulseCard()
-        } catch {
-            terminateSilently()
-            return
-        }
-
-        submissionService.submitRegistration(name: name) { [weak self] in
-            self?.logger.info("Registration webhook call completed")
-        }
-    }
-
-    private func isRegistered() -> Bool {
-        fileManager.fileExists(atPath: registeredFileURL.path)
-    }
-
-    private func readRegisteredName() -> String? {
-        do {
-            guard isRegistered() else { return nil }
-            return try String(contentsOf: registeredFileURL, encoding: .utf8)
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-        } catch {
-            return nil
-        }
-    }
-
     private func subscribeToWakeNotification() {
         NSWorkspace.shared.notificationCenter.addObserver(
             self,
@@ -186,14 +129,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func isTestingBypassEnabled() -> Bool {
-        arguments.contains("--test") || arguments.contains("--test-first-launch")
-    }
-
-    private func applyTestFlagsIfNeeded() {
-        if arguments.contains("--test-first-launch") {
-            try? fileManager.removeItem(at: registeredFileURL)
-            logger.info("Test first launch mode enabled: cleared .registered")
-        }
+        arguments.contains("--test")
     }
 
     private func terminateSilently() {

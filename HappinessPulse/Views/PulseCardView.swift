@@ -2,7 +2,6 @@ import AppKit
 import SwiftUI
 
 struct PulseCardView: View {
-    let employeeName: String
     let onSubmit: (Int, String, @escaping () -> Void) -> Void
 
     @State private var selectedScore: Int?
@@ -17,15 +16,10 @@ struct PulseCardView: View {
                 HomeyLogoView()
                     .frame(width: 120)
 
-                Text("How happy are you?")
+                Text("How happy are you at Homey?")
                     .font(.system(size: 24, weight: .semibold))
                     .foregroundColor(.white)
                     .tracking(0.5)
-                if !employeeName.isEmpty {
-                    Text("Hi \(employeeName)")
-                        .font(.system(size: 13))
-                        .foregroundColor(Color(red: 219 / 255, green: 255 / 255, blue: 0))
-                }
             }
             .padding(.bottom, 4)
 
@@ -281,5 +275,53 @@ private struct BouncingDotsView: View {
         .onAppear {
             animate = true
         }
+    }
+}
+
+struct PrimaryShimmerButtonStyle: ButtonStyle {
+    let enabled: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 16, weight: .bold))
+            .foregroundColor(enabled ? Color(red: 4 / 255, green: 4 / 255, blue: 6 / 255) : Color(red: 0.4, green: 0.4, blue: 0.4))
+            .frame(maxWidth: .infinity)
+            .frame(height: 48)
+            .background(
+                ZStack {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(enabled ? Color(red: 219 / 255, green: 255 / 255, blue: 0) : Color(red: 0.2, green: 0.2, blue: 0.2))
+                    if enabled {
+                        ShimmerBandView()
+                            .mask(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    }
+                }
+            )
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .brightness(configuration.isPressed ? -0.08 : 0)
+            .animation(.easeInOut(duration: 0.2), value: enabled)
+            .animation(.easeInOut(duration: 0.2), value: configuration.isPressed)
+    }
+}
+
+private struct ShimmerBandView: View {
+    @State private var phase: CGFloat = -1
+
+    var body: some View {
+        GeometryReader { proxy in
+            LinearGradient(
+                gradient: Gradient(colors: [Color.clear, Color.white.opacity(0.55), Color.clear]),
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+            .frame(width: proxy.size.width * 0.38)
+            .offset(x: phase * proxy.size.width * 1.8)
+            .onAppear {
+                withAnimation(.linear(duration: 3.8).repeatForever(autoreverses: false)) {
+                    phase = 1
+                }
+            }
+        }
+        .clipped()
     }
 }
