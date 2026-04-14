@@ -8,10 +8,8 @@ struct FirstLaunchView: View {
     var body: some View {
         VStack(spacing: 14) {
             HStack(spacing: 12) {
-                Image(systemName: "house.fill")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(Color(red: 219 / 255, green: 255 / 255, blue: 0))
-                    .accessibilityHidden(true)
+                HomeyLogoView()
+                    .scaleEffect(0.8)
                 Text("👋")
                     .font(.system(size: 24))
                     .rotationEffect(.degrees(waving ? 16 : -8))
@@ -25,14 +23,14 @@ struct FirstLaunchView: View {
 
             Text("Before we begin, please enter your name below.")
                 .font(.system(size: 14))
-                .foregroundColor(Color(red: 0.6, green: 0.6, blue: 0.6))
+                .foregroundColor(Color(red: 0.7, green: 0.7, blue: 0.7))
 
             explanation
                 .padding(12)
                 .background(Color(red: 0.07, green: 0.07, blue: 0.07))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(Color(red: 0.13, green: 0.13, blue: 0.13), lineWidth: 1)
+                        .stroke(Color(red: 124 / 255, green: 87 / 255, blue: 252 / 255).opacity(0.45), lineWidth: 1)
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
@@ -51,8 +49,33 @@ struct FirstLaunchView: View {
         .padding(26)
         .frame(width: 460)
         .background(
+            ZStack {
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .fill(Color(red: 4 / 255, green: 4 / 255, blue: 6 / 255).opacity(0.95))
+                RadialGradient(
+                    gradient: Gradient(colors: [
+                        Color(red: 124 / 255, green: 87 / 255, blue: 252 / 255).opacity(0.22),
+                        .clear
+                    ]),
+                    center: .topTrailing,
+                    startRadius: 4,
+                    endRadius: 200
+                )
+            }
+        )
+        .overlay(
             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(Color(red: 4 / 255, green: 4 / 255, blue: 6 / 255).opacity(0.86))
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 124 / 255, green: 87 / 255, blue: 252 / 255),
+                            Color(red: 219 / 255, green: 255 / 255, blue: 0)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1.8
+                )
         )
     }
 
@@ -130,18 +153,35 @@ struct PrimaryShimmerButtonStyle: ButtonStyle {
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
                         .fill(enabled ? Color(red: 219 / 255, green: 255 / 255, blue: 0) : Color(red: 0.2, green: 0.2, blue: 0.2))
                     if enabled {
-                        LinearGradient(
-                            gradient: Gradient(colors: [Color.clear, Color.white.opacity(0.35), Color.clear]),
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                        .blendMode(.screen)
-                        .mask(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        ShimmerBandView()
+                            .mask(RoundedRectangle(cornerRadius: 14, style: .continuous))
                     }
                 }
             )
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
             .brightness(configuration.isPressed ? -0.08 : 0)
             .animation(.easeInOut(duration: 0.2), value: configuration.isPressed)
+    }
+}
+
+private struct ShimmerBandView: View {
+    @State private var phase: CGFloat = -1
+
+    var body: some View {
+        GeometryReader { proxy in
+            LinearGradient(
+                gradient: Gradient(colors: [Color.clear, Color.white.opacity(0.55), Color.clear]),
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+            .frame(width: proxy.size.width * 0.38)
+            .offset(x: phase * proxy.size.width * 1.8)
+            .onAppear {
+                withAnimation(.linear(duration: 3.8).repeatForever(autoreverses: false)) {
+                    phase = 1
+                }
+            }
+        }
+        .clipped()
     }
 }

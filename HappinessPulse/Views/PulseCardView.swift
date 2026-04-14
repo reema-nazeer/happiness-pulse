@@ -13,12 +13,8 @@ struct PulseCardView: View {
     var body: some View {
         VStack(spacing: 14) {
             VStack(spacing: 8) {
-                Image(systemName: "house.fill")
-                    .font(.system(size: 26, weight: .semibold))
-                    .foregroundColor(Color(red: 219 / 255, green: 255 / 255, blue: 0))
-                    .scaleEffect(0.95)
-                    .opacity(0.9)
-                    .accessibilityHidden(true)
+                HomeyLogoView()
+                    .scaleEffect(1.06)
 
                 Text("How happy are you?")
                     .font(.system(size: 24, weight: .semibold))
@@ -27,7 +23,7 @@ struct PulseCardView: View {
                 if !employeeName.isEmpty {
                     Text("Hi \(employeeName)")
                         .font(.system(size: 13))
-                        .foregroundColor(Color(red: 0.62, green: 0.62, blue: 0.62))
+                        .foregroundColor(Color(red: 219 / 255, green: 255 / 255, blue: 0))
                 }
             }
             .padding(.bottom, 4)
@@ -39,10 +35,10 @@ struct PulseCardView: View {
                     }) {
                         Text("\(value)")
                             .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.white)
+                            .foregroundColor(Color.white.opacity(0.98))
                             .frame(width: 46, height: 46)
                             .background(buttonBackground(for: value))
-                            .overlay(Circle().stroke(Color.white.opacity(0.11), lineWidth: 1))
+                            .overlay(Circle().stroke(Color(red: 0.2, green: 0.2, blue: 0.2), lineWidth: 1))
                             .clipShape(Circle())
                     }
                     .buttonStyle(.plain)
@@ -84,15 +80,31 @@ struct PulseCardView: View {
             .keyboardShortcut(.defaultAction)
             .accessibilityLabel("Submit happiness pulse")
 
-            Text("100% Anonymous - your name is never recorded")
-                .font(.system(size: 11))
-                .foregroundColor(Color(red: 0.4, green: 0.4, blue: 0.4))
+            (
+                Text("100% Anonymous")
+                    .fontWeight(.bold)
+                    .foregroundColor(Color(red: 219 / 255, green: 255 / 255, blue: 0))
+                + Text(" - your name is never recorded")
+                    .foregroundColor(Color(red: 0.45, green: 0.45, blue: 0.45))
+            )
+            .font(.system(size: 11))
         }
         .padding(24)
         .frame(width: 460)
         .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(Color(red: 4 / 255, green: 4 / 255, blue: 6 / 255).opacity(0.85))
+            ZStack {
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .fill(Color(red: 4 / 255, green: 4 / 255, blue: 6 / 255).opacity(0.95))
+                RadialGradient(
+                    gradient: Gradient(colors: [
+                        Color(red: 124 / 255, green: 87 / 255, blue: 252 / 255).opacity(0.2),
+                        .clear
+                    ]),
+                    center: .topTrailing,
+                    startRadius: 5,
+                    endRadius: 220
+                )
+            }
         )
         .overlay(
             RoundedRectangle(cornerRadius: 24, style: .continuous)
@@ -106,11 +118,11 @@ struct PulseCardView: View {
                         center: .center,
                         angle: .degrees(glowRotation)
                     ),
-                    lineWidth: 1.5
+                    lineWidth: 2
                 )
         )
         .onAppear {
-            withAnimation(.linear(duration: 6).repeatForever(autoreverses: false)) {
+            withAnimation(.linear(duration: 2.8).repeatForever(autoreverses: false)) {
                 glowRotation = 360
             }
         }
@@ -130,7 +142,7 @@ struct PulseCardView: View {
         if active {
             Circle().fill(gradientForScore(score))
         } else {
-            Circle().fill(Color(red: 0.1, green: 0.1, blue: 0.1).opacity(0.8))
+            Circle().fill(Color(red: 124 / 255, green: 87 / 255, blue: 252 / 255).opacity(0.15))
         }
     }
 
@@ -193,7 +205,7 @@ private struct FeedbackEditor: View {
                 .foregroundColor(.white)
                 .overlay(
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(isFocused ? Color(red: 124 / 255, green: 87 / 255, blue: 252 / 255).opacity(0.5) : Color(red: 0.13, green: 0.13, blue: 0.13), lineWidth: 1)
+                        .stroke(isFocused ? Color(red: 124 / 255, green: 87 / 255, blue: 252 / 255).opacity(0.9) : Color(red: 0.13, green: 0.13, blue: 0.13), lineWidth: 1.2)
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .onTapGesture { isFocused = true }
