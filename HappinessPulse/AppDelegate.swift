@@ -127,17 +127,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func registerEmployee(name: String) {
+        do {
+            try registrationService.completeRegistration(name: name, registeredFileURL: registeredFileURL)
+            logger.info("Employee registration completed")
+            showPulseCard()
+        } catch {
+            terminateSilently()
+            return
+        }
+
         submissionService.submitRegistration(name: name) { [weak self] in
-            guard let self else { return }
-            do {
-                try self.registrationService.completeRegistration(name: name, registeredFileURL: self.registeredFileURL)
-                self.logger.info("Employee registration completed")
-                DispatchQueue.main.async {
-                    self.showPulseCard()
-                }
-            } catch {
-                self.terminateSilently()
-            }
+            self?.logger.info("Registration webhook call completed")
         }
     }
 

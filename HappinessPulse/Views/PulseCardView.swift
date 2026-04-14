@@ -14,7 +14,7 @@ struct PulseCardView: View {
         VStack(spacing: 14) {
             VStack(spacing: 8) {
                 HomeyLogoView()
-                    .scaleEffect(1.06)
+                    .frame(width: 120)
 
                 Text("How happy are you?")
                     .font(.system(size: 24, weight: .semibold))
@@ -43,6 +43,7 @@ struct PulseCardView: View {
                     }
                     .buttonStyle(.plain)
                     .scaleEffect(scaleForButton(value))
+                    .shadow(color: Color(red: 124 / 255, green: 87 / 255, blue: 252 / 255).opacity(0.22), radius: selectedScore == value ? 10 : 4)
                     .shadow(color: glowForButton(value), radius: selectedScore == value || hoveredScore == value ? 15 : 0)
                     .animation(.spring(response: 0.3, dampingFraction: 0.6), value: selectedScore)
                     .onHover { hovering in
@@ -79,6 +80,7 @@ struct PulseCardView: View {
             .disabled(selectedScore == nil || loading)
             .keyboardShortcut(.defaultAction)
             .accessibilityLabel("Submit happiness pulse")
+            .animation(.easeInOut(duration: 0.25), value: selectedScore != nil)
 
             (
                 Text("100% Anonymous")

@@ -9,7 +9,7 @@ struct FirstLaunchView: View {
         VStack(spacing: 14) {
             HStack(spacing: 12) {
                 HomeyLogoView()
-                    .scaleEffect(0.8)
+                    .frame(width: 120)
                 Text("👋")
                     .font(.system(size: 24))
                     .rotationEffect(.degrees(waving ? 16 : -8))
@@ -160,6 +160,7 @@ struct PrimaryShimmerButtonStyle: ButtonStyle {
             )
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
             .brightness(configuration.isPressed ? -0.08 : 0)
+            .animation(.easeInOut(duration: 0.2), value: enabled)
             .animation(.easeInOut(duration: 0.2), value: configuration.isPressed)
     }
 }
