@@ -10,8 +10,7 @@ PENDING_DIR="$BASE_DIR/pending"
 LAUNCH_AGENT_ID="uk.co.homey.pulse"
 LAUNCH_AGENTS_DIR="$HOME/Library/LaunchAgents"
 LAUNCH_AGENT_PATH="$LAUNCH_AGENTS_DIR/${LAUNCH_AGENT_ID}.plist"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PLIST_TEMPLATE="$SCRIPT_DIR/uk.co.homey.pulse.plist"
+PLIST_TEMPLATE="./Scripts/uk.co.homey.pulse.plist"
 
 GREEN='\033[0;32m'
 NC='\033[0m'
@@ -56,7 +55,55 @@ rm -rf "$APP_PATH"
 mv "$TMP_UNZIP_DIR/$APP_NAME" "$APP_PATH"
 xattr -rd com.apple.quarantine "$APP_PATH" 2>/dev/null || true
 
-sed "s|\$HOME|$HOME|g" "$PLIST_TEMPLATE" > "$LAUNCH_AGENT_PATH"
+write_launch_agent_plist() {
+    local source_template="$1"
+    if [ -f "$source_template" ]; then
+        sed "s|\$HOME|$HOME|g" "$source_template" > "$LAUNCH_AGENT_PATH"
+        return 0
+    fi
+
+    cat > "$LAUNCH_AGENT_PATH" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>uk.co.homey.pulse</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>$HOME/homey-pulse/HappinessPulse.app/Contents/MacOS/HappinessPulse</string>
+    </array>
+    <key>RunAtLoad</key>
+    <false/>
+    <key>KeepAlive</key>
+    <false/>
+    <key>StartInterval</key>
+    <integer>300</integer>
+    <key>ProcessType</key>
+    <string>Background</string>
+    <key>LowPriorityIO</key>
+    <true/>
+    <key>Nice</key>
+    <integer>10</integer>
+    <key>LimitLoadToSessionType</key>
+    <array>
+        <string>Aqua</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>$HOME</string>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/dev/null</string>
+    <key>StandardErrorPath</key>
+    <string>/dev/null</string>
+</dict>
+</plist>
+EOF
+}
+
+write_launch_agent_plist "$PLIST_TEMPLATE"
 
 launchctl unload "$LAUNCH_AGENT_PATH" 2>/dev/null || true
 launchctl load "$LAUNCH_AGENT_PATH"
