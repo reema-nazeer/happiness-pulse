@@ -66,6 +66,9 @@ final class PulseOverlayWindowController {
 }
 
 final class PulseBlockingWindow: NSWindow {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { true }
+
     override func cancelOperation(_ sender: Any?) {
         // Intentionally ignore Escape and cancel operations.
     }
