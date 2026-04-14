@@ -1,0 +1,12 @@
+{
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  },
+  "properties" : {
+    "provides-namespace" : true
+  },
+  "todo" : {
+    "note" : "TODO: Add app icon set and Homey logo assets."
+  }
+}

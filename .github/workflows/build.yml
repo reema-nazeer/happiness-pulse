@@ -1,0 +1,180 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build-arm64:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build arm64 release binary
+        run: swift build -c release --arch arm64
+
+      - name: Package arm64 .app
+        run: |
+          set -euo pipefail
+          APP_DIR="HappinessPulse.app"
+          mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
+
+          BINARY_PATH=""
+          for candidate in \
+            ".build/release/HappinessPulse" \
+            ".build/arm64-apple-macosx/release/HappinessPulse" \
+            ".build/apple/Products/Release/HappinessPulse"; do
+            if [ -f "$candidate" ]; then
+              BINARY_PATH="$candidate"
+              break
+            fi
+          done
+
+          if [ -z "$BINARY_PATH" ]; then
+            echo "Could not locate arm64 release binary."
+            exit 1
+          fi
+
+          cp "$BINARY_PATH" "$APP_DIR/Contents/MacOS/HappinessPulse"
+          chmod +x "$APP_DIR/Contents/MacOS/HappinessPulse"
+
+          cat > "$APP_DIR/Contents/Info.plist" <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleIdentifier</key>
+            <string>uk.co.homey.pulse</string>
+            <key>CFBundleName</key>
+            <string>HappinessPulse</string>
+            <key>CFBundleExecutable</key>
+            <string>HappinessPulse</string>
+            <key>CFBundleVersion</key>
+            <string>2.0.0</string>
+            <key>LSUIElement</key>
+            <true/>
+            <key>LSMinimumSystemVersion</key>
+            <string>11.0</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+          </dict>
+          </plist>
+          EOF
+
+          if [ -f "HappinessPulse/Resources/AppIcon.icns" ]; then
+            cp "HappinessPulse/Resources/AppIcon.icns" "$APP_DIR/Contents/Resources/AppIcon.icns"
+          fi
+
+      - name: Ad-hoc sign arm64 app
+        run: codesign --force --sign - HappinessPulse.app
+
+      - name: Zip arm64 app
+        run: zip -r HappinessPulse-arm64.zip HappinessPulse.app
+
+      - name: Upload arm64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HappinessPulse-arm64
+          path: HappinessPulse-arm64.zip
+
+  build-x86:
+    runs-on: macos-13
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build x86_64 release binary
+        run: swift build -c release --arch x86_64
+
+      - name: Package x86_64 .app
+        run: |
+          set -euo pipefail
+          APP_DIR="HappinessPulse.app"
+          mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
+
+          BINARY_PATH=""
+          for candidate in \
+            ".build/release/HappinessPulse" \
+            ".build/x86_64-apple-macosx/release/HappinessPulse" \
+            ".build/apple/Products/Release/HappinessPulse"; do
+            if [ -f "$candidate" ]; then
+              BINARY_PATH="$candidate"
+              break
+            fi
+          done
+
+          if [ -z "$BINARY_PATH" ]; then
+            echo "Could not locate x86_64 release binary."
+            exit 1
+          fi
+
+          cp "$BINARY_PATH" "$APP_DIR/Contents/MacOS/HappinessPulse"
+          chmod +x "$APP_DIR/Contents/MacOS/HappinessPulse"
+
+          cat > "$APP_DIR/Contents/Info.plist" <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleIdentifier</key>
+            <string>uk.co.homey.pulse</string>
+            <key>CFBundleName</key>
+            <string>HappinessPulse</string>
+            <key>CFBundleExecutable</key>
+            <string>HappinessPulse</string>
+            <key>CFBundleVersion</key>
+            <string>2.0.0</string>
+            <key>LSUIElement</key>
+            <true/>
+            <key>LSMinimumSystemVersion</key>
+            <string>11.0</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+          </dict>
+          </plist>
+          EOF
+
+          if [ -f "HappinessPulse/Resources/AppIcon.icns" ]; then
+            cp "HappinessPulse/Resources/AppIcon.icns" "$APP_DIR/Contents/Resources/AppIcon.icns"
+          fi
+
+      - name: Ad-hoc sign x86_64 app
+        run: codesign --force --sign - HappinessPulse.app
+
+      - name: Zip x86_64 app
+        run: zip -r HappinessPulse-x86_64.zip HappinessPulse.app
+
+      - name: Upload x86_64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HappinessPulse-x86_64
+          path: HappinessPulse-x86_64.zip
+
+  release:
+    needs: [build-arm64, build-x86]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download arm64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: HappinessPulse-arm64
+          path: dist
+
+      - name: Download x86_64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: HappinessPulse-x86_64
+          path: dist
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/HappinessPulse-arm64.zip
+            dist/HappinessPulse-x86_64.zip
+          generate_release_notes: true
