@@ -1,5 +1,6 @@
 #!/bin/bash
 set -euo pipefail
+umask 077
 
 WEBHOOK_URL="https://script.google.com/macros/s/AKfycbxE6GyN8jsybwc3_1hC2irErQeKO9Yu-j8hgglVXaHuPK8vsdDJwSMJbC2J7eOzsy7g/exec"
 BASE_DIR="$HOME/homey-pulse"
@@ -24,10 +25,13 @@ case "$ARCH" in
 esac
 
 RELEASE_URL="https://github.com/reema-nazeer/happiness-pulse/releases/latest/download/HappinessPulse-${ARCH}.zip"
+CHECKSUM_URL="${RELEASE_URL}.sha256"
 TMP_ZIP="$(mktemp "/tmp/homey-pulse-${ARCH}.XXXXXX.zip")"
+TMP_SHA="$(mktemp "/tmp/homey-pulse-${ARCH}.XXXXXX.sha256")"
 TMP_UNZIP_DIR="$(mktemp -d "/tmp/homey-pulse-unzip.XXXXXX")"
 cleanup() {
     rm -f "$TMP_ZIP" 2>/dev/null || true
+    rm -f "$TMP_SHA" 2>/dev/null || true
     rm -rf "$TMP_UNZIP_DIR" 2>/dev/null || true
 }
 trap cleanup EXIT
@@ -38,6 +42,21 @@ pkill -f HappinessPulse || true
 if ! curl -sL --connect-timeout 4 --max-time 8 "$RELEASE_URL" -o "$TMP_ZIP"; then
     echo "Failed to download Homey Happiness Pulse update from GitHub Releases."
     echo "Check your connection or corporate firewall and try again."
+    exit 1
+fi
+
+if ! curl -sL --connect-timeout 4 --max-time 8 "$CHECKSUM_URL" -o "$TMP_SHA"; then
+    echo "Failed to download release checksum file."
+    echo "Cannot verify package integrity. Aborting update."
+    exit 1
+fi
+
+EXPECTED_SUM="$(awk '{print $1}' "$TMP_SHA" | tr -d '\n')"
+ACTUAL_SUM="$(shasum -a 256 "$TMP_ZIP" | awk '{print $1}')"
+if [ -z "$EXPECTED_SUM" ] || [ "$EXPECTED_SUM" != "$ACTUAL_SUM" ]; then
+    echo "Checksum verification failed for downloaded update package."
+    echo "Expected: $EXPECTED_SUM"
+    echo "Actual:   $ACTUAL_SUM"
     exit 1
 fi
 

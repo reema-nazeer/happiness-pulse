@@ -4,6 +4,7 @@ function doPost(e) {
   try {
     var ss = SpreadsheetApp.openById(HOMEY_SPREADSHEET_ID);
     var payload = parseRequestPayload_(e);
+    enforceWebhookAuth_(payload);
     var nowIso = new Date().toISOString();
     var type = String(payload.type || "").toLowerCase();
 
@@ -53,6 +54,17 @@ function doGet() {
     status: "running",
     version: "2.0"
   });
+}
+
+function enforceWebhookAuth_(payload) {
+  var configuredSecret = PropertiesService.getScriptProperties().getProperty("WEBHOOK_SHARED_SECRET");
+  if (!configuredSecret) {
+    return;
+  }
+  var provided = payload && payload.secret ? String(payload.secret) : "";
+  if (provided !== configuredSecret) {
+    throw new Error("Unauthorized webhook request");
+  }
 }
 
 function parseRequestPayload_(e) {

@@ -44,6 +44,7 @@ final class FlagManager {
         let todayFlag = flagsDirectory.appendingPathComponent(currentDateString(for: date))
         let payload = "\(isoFormatter.string(from: date))\n"
         try payload.write(to: todayFlag, atomically: true, encoding: .utf8)
+        try? fileManager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: todayFlag.path)
     }
 
     func cleanupOldFlags(daysToKeep: Int = 30) {
@@ -77,6 +78,7 @@ final class FlagManager {
     private func ensureFlagsDirectory() throws {
         if !fileManager.fileExists(atPath: flagsDirectory.path) {
             try fileManager.createDirectory(at: flagsDirectory, withIntermediateDirectories: true)
+            try? fileManager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: flagsDirectory.path)
         }
     }
 }

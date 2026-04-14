@@ -74,11 +74,16 @@ jobs:
       - name: Zip arm64 app
         run: zip -r HappinessPulse-arm64.zip HappinessPulse.app
 
+      - name: Generate arm64 checksum
+        run: shasum -a 256 HappinessPulse-arm64.zip > HappinessPulse-arm64.zip.sha256
+
       - name: Upload arm64 artifact
         uses: actions/upload-artifact@v5
         with:
           name: HappinessPulse-arm64
-          path: HappinessPulse-arm64.zip
+          path: |
+            HappinessPulse-arm64.zip
+            HappinessPulse-arm64.zip.sha256
 
   build-x86:
     runs-on: "macos-14"
@@ -147,11 +152,16 @@ jobs:
       - name: Zip x86_64 app
         run: zip -r HappinessPulse-x86_64.zip HappinessPulse.app
 
+      - name: Generate x86_64 checksum
+        run: shasum -a 256 HappinessPulse-x86_64.zip > HappinessPulse-x86_64.zip.sha256
+
       - name: Upload x86_64 artifact
         uses: actions/upload-artifact@v5
         with:
           name: HappinessPulse-x86_64
-          path: HappinessPulse-x86_64.zip
+          path: |
+            HappinessPulse-x86_64.zip
+            HappinessPulse-x86_64.zip.sha256
 
   release:
     needs: [build-arm64, build-x86]
@@ -160,13 +170,13 @@ jobs:
       contents: write
     steps:
       - name: Download arm64 artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: HappinessPulse-arm64
           path: dist
 
       - name: Download x86_64 artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: HappinessPulse-x86_64
           path: dist
@@ -176,5 +186,7 @@ jobs:
         with:
           files: |
             dist/HappinessPulse-arm64.zip
+            dist/HappinessPulse-arm64.zip.sha256
             dist/HappinessPulse-x86_64.zip
+            dist/HappinessPulse-x86_64.zip.sha256
           generate_release_notes: true

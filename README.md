@@ -23,6 +23,11 @@ TODO: Fill in implementation details for app logic, launch flow, install/update 
 ## Runtime Hardening Notes
 - Overlay window level uses `.floating` by default to avoid potential Screen Recording permission side effects seen with `.screenSaver` on some macOS setups.
 - Installer removes quarantine attributes to avoid app translocation (`xattr -rd com.apple.quarantine`).
+- Install/update scripts verify release ZIP integrity using SHA-256 `.sha256` sidecar files from GitHub Releases.
+- Local app state files are written with restrictive permissions (`600` files, `700` directories) for lock/flags/pending/log paths.
+- Apps Script backend supports optional shared-secret validation via Script Properties:
+  - Set `WEBHOOK_SHARED_SECRET` in Apps Script project settings.
+  - macOS app can send secret with `HOMEY_PULSE_WEBHOOK_SECRET` env var.
 - Test flags:
   - `HappinessPulse --test` bypasses weekday/time/flag checks.
   - `HappinessPulse --test-first-launch` clears `.registered` and opens first-launch flow.

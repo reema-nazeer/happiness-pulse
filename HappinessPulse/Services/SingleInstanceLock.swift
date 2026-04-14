@@ -19,6 +19,7 @@ final class SingleInstanceLock {
                 at: lockFileURL.deletingLastPathComponent(),
                 withIntermediateDirectories: true
             )
+            try? fileManager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: lockFileURL.deletingLastPathComponent().path)
         } catch {
             return false
         }
@@ -42,6 +43,7 @@ final class SingleInstanceLock {
 
         do {
             try "\(currentPID)\n".write(to: lockFileURL, atomically: true, encoding: .utf8)
+            try? fileManager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: lockFileURL.path)
             lockAcquired = true
             return true
         } catch {

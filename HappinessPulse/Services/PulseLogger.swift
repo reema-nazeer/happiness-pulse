@@ -12,6 +12,7 @@ final class PulseLogger {
         let baseDir = home.appendingPathComponent("homey-pulse", isDirectory: true)
         logURL = baseDir.appendingPathComponent("pulse.log")
         try? fileManager.createDirectory(at: baseDir, withIntermediateDirectories: true)
+        try? fileManager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: baseDir.path)
     }
 
     func info(_ message: String) {
@@ -29,6 +30,7 @@ final class PulseLogger {
         do {
             if !fileManager.fileExists(atPath: logURL.path) {
                 fileManager.createFile(atPath: logURL.path, contents: Data())
+                try? fileManager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: logURL.path)
             }
 
             let handle = try FileHandle(forWritingTo: logURL)

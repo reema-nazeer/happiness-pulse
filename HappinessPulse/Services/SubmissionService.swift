@@ -9,6 +9,7 @@ final class SubmissionService {
         let version: String
         let os_version: String
         let source: String
+        let secret: String?
     }
 
     private struct RegistrationPayload: Codable {
@@ -18,6 +19,7 @@ final class SubmissionService {
         let version: String
         let arch: String
         let os: String
+        let secret: String?
     }
 
     private let webhookURL = URL(string: "https://script.google.com/macros/s/AKfycbxE6GyN8jsybwc3_1hC2irErQeKO9Yu-j8hgglVXaHuPK8vsdDJwSMJbC2J7eOzsy7g/exec")
@@ -26,6 +28,7 @@ final class SubmissionService {
     private let encoder = JSONEncoder()
     private let nowProvider: () -> Date
     private let injectedNetworkPost: ((URL, Data, @escaping (Result<Void, Error>) -> Void) -> Void)?
+    private let webhookSecret: String?
     private lazy var pendingDirectory: URL = {
         baseDirectory.appendingPathComponent("pending", isDirectory: true)
     }()
@@ -43,11 +46,13 @@ final class SubmissionService {
     init(
         baseDirectory: URL? = nil,
         nowProvider: @escaping () -> Date = Date.init,
-        networkPost: ((URL, Data, @escaping (Result<Void, Error>) -> Void) -> Void)? = nil
+        networkPost: ((URL, Data, @escaping (Result<Void, Error>) -> Void) -> Void)? = nil,
+        webhookSecret: String? = ProcessInfo.processInfo.environment["HOMEY_PULSE_WEBHOOK_SECRET"]
     ) {
         self.baseDirectory = baseDirectory ?? fileManager.homeDirectoryForCurrentUser.appendingPathComponent("homey-pulse", isDirectory: true)
         self.nowProvider = nowProvider
         self.injectedNetworkPost = networkPost
+        self.webhookSecret = webhookSecret
     }
 
     func submitPulse(score: Int, feedback: String, completion: @escaping (Result<Void, Error>) -> Void) {
@@ -63,7 +68,8 @@ final class SubmissionService {
             timestamp: ISO8601DateFormatter().string(from: nowProvider()),
             version: "2.0.0",
             os_version: ProcessInfo.processInfo.shortOSVersion,
-            source: "macos-native-v2"
+            source: "macos-native-v2",
+            secret: webhookSecret
         )
 
         do {
@@ -92,7 +98,8 @@ final class SubmissionService {
             timestamp: ISO8601DateFormatter().string(from: nowProvider()),
             version: "2.0.0",
             arch: ProcessInfo.processInfo.machineArchitecture,
-            os: ProcessInfo.processInfo.shortOSVersion
+            os: ProcessInfo.processInfo.shortOSVersion,
+            secret: webhookSecret
         )
 
         let body = (try? encoder.encode(payload)) ?? Data()
@@ -187,6 +194,7 @@ final class SubmissionService {
             let filename = "pending-\(UUID().uuidString).json"
             let target = pendingDirectory.appendingPathComponent(filename)
             try body.write(to: target, options: .atomic)
+            try? fileManager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: target.path)
             logger.error("Submission queued for retry")
         } catch {
             logger.error("Failed to queue pending submission")
@@ -212,6 +220,7 @@ final class SubmissionService {
     private func ensurePendingDirectory() throws {
         if !fileManager.fileExists(atPath: pendingDirectory.path) {
             try fileManager.createDirectory(at: pendingDirectory, withIntermediateDirectories: true)
+            try? fileManager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: pendingDirectory.path)
         }
     }
 }
