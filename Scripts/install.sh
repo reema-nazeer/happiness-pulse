@@ -84,13 +84,43 @@ cat > "$BASE_DIR/run.sh" << 'RUNEOF'
 export HOME="${HOME:-$(eval echo ~$(whoami))}"
 export PATH="/usr/bin:/bin:/usr/sbin:/sbin"
 LOG="$HOME/homey-pulse/pulse-wrapper.log"
+LOCKDIR="$HOME/homey-pulse/.run.lock"
 
 # Rotate log if over 100KB
 if [ -f "$LOG" ] && [ "$(stat -f%z "$LOG" 2>/dev/null || echo 0)" -gt 102400 ]; then
     tail -50 "$LOG" > "${LOG}.tmp" && mv "${LOG}.tmp" "$LOG"
 fi
 
-echo "$(date): Wrapper started, HOME=$HOME, PID=$$" >> "$LOG"
+# Single-instance lock using mkdir (atomic operation)
+# If another instance is running, mkdir fails and we exit
+if ! mkdir "$LOCKDIR" 2>/dev/null; then
+    # Check if the lock is stale (older than 10 minutes)
+    if [ -d "$LOCKDIR" ]; then
+        LOCK_AGE=$(( $(date +%s) - $(stat -f%m "$LOCKDIR" 2>/dev/null || echo 0) ))
+        if [ "$LOCK_AGE" -gt 600 ]; then
+            echo "$(date): Removing stale lock (${LOCK_AGE}s old)" >> "$LOG"
+            rm -rf "$LOCKDIR"
+            mkdir "$LOCKDIR" 2>/dev/null || { echo "$(date): Failed to acquire lock after stale removal" >> "$LOG"; exit 0; }
+        else
+            echo "$(date): Another instance running (lock ${LOCK_AGE}s old), exiting" >> "$LOG"
+            exit 0
+        fi
+    fi
+else
+    echo "$(date): Lock acquired, PID=$$" >> "$LOG"
+fi
+
+# Always remove lock on exit
+trap 'rm -rf "$LOCKDIR" 2>/dev/null' EXIT
+
+# Skip if already submitted today
+TODAY="$(date +%Y-%m-%d)"
+if [ -f "$HOME/homey-pulse/flags/$TODAY" ]; then
+    echo "$(date): Already submitted today ($TODAY), exiting" >> "$LOG"
+    exit 0
+fi
+
+echo "$(date): Launching app, HOME=$HOME, PID=$$" >> "$LOG"
 "$HOME/homey-pulse/HappinessPulse.app/Contents/MacOS/HappinessPulse" >> "$LOG" 2>&1
 echo "$(date): App exited with code $?" >> "$LOG"
 RUNEOF
