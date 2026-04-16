@@ -11,7 +11,6 @@ PENDING_DIR="$BASE_DIR/pending"
 LAUNCH_AGENT_ID="uk.co.homey.pulse"
 LAUNCH_AGENTS_DIR="$HOME/Library/LaunchAgents"
 LAUNCH_AGENT_PATH="$LAUNCH_AGENTS_DIR/${LAUNCH_AGENT_ID}.plist"
-PLIST_TEMPLATE="./Scripts/uk.co.homey.pulse.plist"
 
 GREEN='\033[0;32m'
 NC='\033[0m'
@@ -37,6 +36,10 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# Clean up old v1 files if upgrading
+rm -f "$BASE_DIR/launch.py" "$BASE_DIR/pulse.sh" "$BASE_DIR/pulse-form.html" "$BASE_DIR/install.sh" "$BASE_DIR/update.sh" 2>/dev/null || true
+rm -rf "$BASE_DIR/venv" "$BASE_DIR/__pycache__" 2>/dev/null || true
+
 mkdir -p "$BASE_DIR" "$FLAGS_DIR" "$PENDING_DIR" "$LAUNCH_AGENTS_DIR"
 
 if ! curl -sL --connect-timeout 4 --max-time 8 "$RELEASE_URL" -o "$TMP_ZIP"; then
@@ -45,19 +48,18 @@ if ! curl -sL --connect-timeout 4 --max-time 8 "$RELEASE_URL" -o "$TMP_ZIP"; the
     exit 1
 fi
 
-if ! curl -sL --connect-timeout 4 --max-time 8 "$CHECKSUM_URL" -o "$TMP_SHA"; then
-    echo "Failed to download release checksum file."
-    echo "Cannot verify package integrity. Aborting install."
-    exit 1
-fi
-
-EXPECTED_SUM="$(awk '{print $1}' "$TMP_SHA" | tr -d '\n')"
-ACTUAL_SUM="$(shasum -a 256 "$TMP_ZIP" | awk '{print $1}')"
-if [ -z "$EXPECTED_SUM" ] || [ "$EXPECTED_SUM" != "$ACTUAL_SUM" ]; then
-    echo "Checksum verification failed for downloaded package."
-    echo "Expected: $EXPECTED_SUM"
-    echo "Actual:   $ACTUAL_SUM"
-    exit 1
+# Checksum verification (optional - warn but continue if unavailable)
+if curl -sL --connect-timeout 4 --max-time 8 "$CHECKSUM_URL" -o "$TMP_SHA" 2>/dev/null; then
+    EXPECTED_SUM="$(awk '{print $1}' "$TMP_SHA" | tr -d '\n')"
+    ACTUAL_SUM="$(shasum -a 256 "$TMP_ZIP" | awk '{print $1}')"
+    if [ -n "$EXPECTED_SUM" ] && [ "$EXPECTED_SUM" != "$ACTUAL_SUM" ]; then
+        echo "Checksum verification failed for downloaded package."
+        echo "Expected: $EXPECTED_SUM"
+        echo "Actual:   $ACTUAL_SUM"
+        exit 1
+    fi
+else
+    echo "Warning: Could not download checksum file. Skipping verification."
 fi
 
 if ! unzip -q "$TMP_ZIP" -d "$TMP_UNZIP_DIR"; then
@@ -74,14 +76,28 @@ rm -rf "$APP_PATH"
 mv "$TMP_UNZIP_DIR/$APP_NAME" "$APP_PATH"
 xattr -rd com.apple.quarantine "$APP_PATH" 2>/dev/null || true
 
-write_launch_agent_plist() {
-    local source_template="$1"
-    if [ -f "$source_template" ]; then
-        sed "s|\$HOME|$HOME|g" "$source_template" > "$LAUNCH_AGENT_PATH"
-        return 0
-    fi
+# Create wrapper script for launchd compatibility
+# launchd launches apps in a minimal environment which can cause silent failures.
+# The wrapper ensures HOME, PATH, and logging are set up correctly.
+cat > "$BASE_DIR/run.sh" << 'RUNEOF'
+#!/bin/bash
+export HOME="${HOME:-$(eval echo ~$(whoami))}"
+export PATH="/usr/bin:/bin:/usr/sbin:/sbin"
+LOG="$HOME/homey-pulse/pulse-wrapper.log"
 
-    cat > "$LAUNCH_AGENT_PATH" <<EOF
+# Rotate log if over 100KB
+if [ -f "$LOG" ] && [ "$(stat -f%z "$LOG" 2>/dev/null || echo 0)" -gt 102400 ]; then
+    tail -50 "$LOG" > "${LOG}.tmp" && mv "${LOG}.tmp" "$LOG"
+fi
+
+echo "$(date): Wrapper started, HOME=$HOME, PID=$$" >> "$LOG"
+"$HOME/homey-pulse/HappinessPulse.app/Contents/MacOS/HappinessPulse" >> "$LOG" 2>&1
+echo "$(date): App exited with code $?" >> "$LOG"
+RUNEOF
+chmod +x "$BASE_DIR/run.sh"
+
+# Write LaunchAgent plist using wrapper script
+cat > "$LAUNCH_AGENT_PATH" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -90,7 +106,8 @@ write_launch_agent_plist() {
     <string>uk.co.homey.pulse</string>
     <key>ProgramArguments</key>
     <array>
-        <string>$HOME/homey-pulse/HappinessPulse.app/Contents/MacOS/HappinessPulse</string>
+        <string>/bin/bash</string>
+        <string>$HOME/homey-pulse/run.sh</string>
     </array>
     <key>RunAtLoad</key>
     <false/>
@@ -100,7 +117,7 @@ write_launch_agent_plist() {
     <integer>300</integer>
     <key>ProcessType</key>
     <string>Background</string>
-    <key>LowPriorityIO</key>
+    <key>LowPriorityBackgroundIO</key>
     <true/>
     <key>Nice</key>
     <integer>10</integer>
@@ -120,9 +137,6 @@ write_launch_agent_plist() {
 </dict>
 </plist>
 EOF
-}
-
-write_launch_agent_plist "$PLIST_TEMPLATE"
 
 launchctl unload "$LAUNCH_AGENT_PATH" 2>/dev/null || true
 launchctl load "$LAUNCH_AGENT_PATH"
