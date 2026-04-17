@@ -234,6 +234,7 @@ private struct FeedbackEditor: View {
             TextEditor(text: $text)
                 .font(.system(size: 14))
                 .padding(8)
+                .scrollContentBackground(.hidden)
                 .background(Color(red: 0.04, green: 0.04, blue: 0.04))
                 .foregroundColor(.white)
                 .overlay(
