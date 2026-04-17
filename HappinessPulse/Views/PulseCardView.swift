@@ -108,7 +108,7 @@ struct PulseCardView: View {
                 )
         )
         .onAppear {
-            withAnimation(.linear(duration: 2.8).repeatForever(autoreverses: false)) {
+            withAnimation(.linear(duration: 6).repeatForever(autoreverses: false)) {
                 glowRotation = 360
             }
         }
@@ -318,7 +318,7 @@ private struct ShimmerBandView: View {
             .frame(width: proxy.size.width * 0.38)
             .offset(x: phase * proxy.size.width * 1.8)
             .onAppear {
-                withAnimation(.linear(duration: 3.8).repeatForever(autoreverses: false)) {
+                withAnimation(.linear(duration: 5).repeatForever(autoreverses: false)) {
                     phase = 1
                 }
             }
