@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<base target="_top">
+<title>Homey Pulse — Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --purple: #7C57FC;
+  --yellow: #DBFF00;
+  --black: #040406;
+  --white: #FFFFFF;
+  --grey-50: #FAFAFC;
+  --grey-100: #F0F0F4;
+  --grey-200: #ECECEE;
+  --grey-400: #9aa0a6;
+  --grey-600: #5a6068;
+}
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  background: var(--grey-50);
+  color: var(--black);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+header.brand {
+  background: var(--black);
+  padding: 24px;
+  text-align: center;
+}
+header.brand img { display: block; margin: 0 auto 8px; height: 40px; }
+header.brand .eyebrow {
+  font-size: 11px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--yellow);
+  font-weight: 600;
+}
+header.brand h1 {
+  color: var(--white);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  margin-top: 4px;
+}
+.container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+.section { margin-bottom: 28px; }
+.section h2 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--black);
+  margin-bottom: 12px;
+  letter-spacing: -0.1px;
+}
+.note {
+  font-size: 12px;
+  color: var(--grey-400);
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+
+/* Cards */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+.card {
+  background: var(--white);
+  border: 1px solid var(--grey-200);
+  border-radius: 12px;
+  padding: 16px;
+}
+.card .label {
+  color: var(--grey-400);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.card .value {
+  color: var(--black);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+.card .sub {
+  color: var(--grey-400);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+/* Department breakdown */
+.dept-table {
+  background: var(--white);
+  border: 1px solid var(--grey-200);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.dept-table table { width: 100%; border-collapse: collapse; }
+.dept-table th {
+  text-align: left;
+  padding: 12px 16px;
+  background: var(--grey-50);
+  color: var(--grey-400);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  border-bottom: 1px solid var(--grey-200);
+}
+.dept-table td {
+  padding: 14px 16px;
+  font-size: 13px;
+  color: var(--black);
+  border-bottom: 1px solid var(--grey-100);
+}
+.dept-table tr:last-child td { border-bottom: none; }
+.dept-name { font-weight: 600; }
+.dept-num { color: var(--grey-600); }
+
+/* Charts */
+.chart-card {
+  background: var(--white);
+  border: 1px solid var(--grey-200);
+  border-radius: 12px;
+  padding: 16px;
+}
+.chart-card canvas { max-height: 320px; }
+
+/* Feedback */
+.feedback-list { list-style: none; padding: 0; margin: 0; }
+.feedback-item {
+  background: var(--white);
+  border: 1px solid var(--grey-200);
+  border-left: 3px solid var(--purple);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+}
+.feedback-meta {
+  color: var(--grey-400);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.feedback-meta .score-tag {
+  background: var(--purple);
+  color: var(--white);
+  padding: 2px 8px;
+  border-radius: 12px;
+  margin-right: 6px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+.feedback-text { color: var(--black); font-size: 13px; line-height: 1.6; }
+
+/* Login gate */
+.login-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 4, 6, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
+}
+.login-card {
+  background: var(--white);
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 360px;
+  width: 100%;
+  text-align: center;
+}
+.login-card h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--black);
+  margin-bottom: 8px;
+  letter-spacing: -0.2px;
+}
+.login-card p {
+  color: var(--grey-400);
+  font-size: 13px;
+  margin-bottom: 20px;
+  line-height: 1.6;
+}
+.login-card input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 2px solid var(--grey-200);
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--black);
+  background: var(--white);
+  margin-bottom: 12px;
+}
+.login-card input:focus { outline: 2px solid var(--purple); outline-offset: 2px; border-color: var(--purple); }
+.login-card button {
+  width: 100%;
+  background: var(--purple);
+  color: var(--white);
+  border: none;
+  border-radius: 10px;
+  padding: 12px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.login-card button:hover { background: #6B45EB; }
+.login-card .err {
+  color: #C13B3B;
+  font-size: 12px;
+  margin-top: 8px;
+  min-height: 16px;
+}
+
+.loading {
+  text-align: center;
+  padding: 40px 24px;
+  color: var(--grey-400);
+}
+.empty { color: var(--grey-400); font-size: 13px; padding: 12px 0; }
+</style>
+</head>
+<body>
+
+<!-- Password gate -->
+<div class="login-overlay" id="login">
+  <div class="login-card">
+    <h2>Homey Pulse — Admin</h2>
+    <p>Enter the admin password to view dashboard data.</p>
+    <input id="pw" type="password" placeholder="Password" autofocus />
+    <button id="loginBtn">Sign in</button>
+    <div class="err" id="err"></div>
+  </div>
+</div>
+
+<header class="brand" id="brand" style="display:none">
+  <img src="https://raw.githubusercontent.com/reema-nazeer/happiness-pulse/main/assets/homey-logo-white.png" alt="Homey">
+  <div class="eyebrow">Happiness Pulse</div>
+  <h1>Admin Dashboard</h1>
+</header>
+
+<div class="container" id="dashboard" style="display:none">
+  <div class="loading" id="initialLoading">Loading dashboard…</div>
+
+  <div class="section" id="overallSection" style="display:none">
+    <h2>Overall</h2>
+    <div class="cards" id="overallCards"></div>
+  </div>
+
+  <div class="section" id="deptSection" style="display:none">
+    <h2>By department</h2>
+    <div class="dept-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Department</th>
+            <th>Total responses</th>
+            <th>All-time avg</th>
+            <th>This week</th>
+            <th>Today</th>
+          </tr>
+        </thead>
+        <tbody id="deptTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section" id="trendSection" style="display:none">
+    <h2>Daily average — last 30 days</h2>
+    <div class="chart-card"><canvas id="trendChart"></canvas></div>
+  </div>
+
+  <div class="section" id="volumeSection" style="display:none">
+    <h2>Response volume — last 14 days</h2>
+    <div class="chart-card"><canvas id="volumeChart"></canvas></div>
+  </div>
+
+  <div class="section" id="feedbackSection" style="display:none">
+    <h2>Recent anonymous feedback</h2>
+    <p class="note">Comments are not attributed by department — even to admins. Small teams could be triangulated otherwise.</p>
+    <ul class="feedback-list" id="feedbackList"></ul>
+  </div>
+</div>
+
+<script>
+var BRAND = { purple: "#7C57FC", yellow: "#DBFF00", black: "#040406" };
+// Pretty distinct, brand-friendly palette for the per-dept lines.
+var DEPT_COLORS = {
+  Operations: "#7C57FC",
+  Revenue:    "#DBA800",
+  Service:    "#3DA66A",
+  Technology: "#E24B4A"
+};
+var SESSION_KEY = "homeyPulseAdminPw";
+
+document.addEventListener("DOMContentLoaded", function () {
+  var saved = sessionStorage.getItem(SESSION_KEY);
+  if (saved) {
+    attemptLogin(saved, true);
+  }
+  document.getElementById("loginBtn").addEventListener("click", function () {
+    attemptLogin(document.getElementById("pw").value, false);
+  });
+  document.getElementById("pw").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") attemptLogin(document.getElementById("pw").value, false);
+  });
+});
+
+function attemptLogin(password, silent) {
+  if (!password) {
+    document.getElementById("err").textContent = "Password required.";
+    return;
+  }
+  document.getElementById("err").textContent = "";
+  google.script.run
+    .withSuccessHandler(function (data) {
+      sessionStorage.setItem(SESSION_KEY, password);
+      document.getElementById("login").style.display = "none";
+      document.getElementById("brand").style.display = "block";
+      document.getElementById("dashboard").style.display = "block";
+      render(data);
+    })
+    .withFailureHandler(function (err) {
+      sessionStorage.removeItem(SESSION_KEY);
+      var msg = (err && err.message) || String(err);
+      if (silent) {
+        // Saved password no longer works — quietly drop and let the user retry.
+        return;
+      }
+      document.getElementById("err").textContent = msg.indexOf("Invalid password") >= 0
+        ? "Incorrect password."
+        : "Could not load: " + msg;
+    })
+    .getDashboardData(password);
+}
+
+function render(data) {
+  document.getElementById("initialLoading").style.display = "none";
+
+  // ---- Overall cards ----
+  var o = data.overall;
+  document.getElementById("overallCards").innerHTML = [
+    card("All-time responses", String(o.total), o.averageAllTime ? "Avg " + o.averageAllTime.toFixed(1) + " / 10" : ""),
+    card("This week", String(o.thisWeekTotal), o.thisWeekAverage ? "Avg " + o.thisWeekAverage.toFixed(1) + " / 10" : ""),
+    card("Today", String(o.todayTotal), o.todayAverage ? "Avg " + o.todayAverage.toFixed(1) + " / 10" : "")
+  ].join("");
+  document.getElementById("overallSection").style.display = "block";
+
+  // ---- Department breakdown ----
+  var rows = data.departments.map(function (d) {
+    return (
+      "<tr>" +
+        '<td class="dept-name">' + esc(d.name) + "</td>" +
+        '<td class="dept-num">' + d.total + "</td>" +
+        '<td>' + (d.total > 0 ? d.averageAllTime.toFixed(1) : "—") + "</td>" +
+        '<td>' + (d.thisWeek > 0 ? d.averageThisWeek.toFixed(1) + " (" + d.thisWeek + ")" : "—") + "</td>" +
+        '<td>' + (d.today > 0 ? d.averageToday.toFixed(1) + " (" + d.today + ")" : "—") + "</td>" +
+      "</tr>"
+    );
+  }).join("");
+  document.getElementById("deptTbody").innerHTML = rows;
+  document.getElementById("deptSection").style.display = "block";
+
+  // ---- Trend chart (30 days, line per dept + overall) ----
+  drawTrend(data);
+  document.getElementById("trendSection").style.display = "block";
+
+  // ---- Volume bar chart (14 days) ----
+  drawVolume(data);
+  document.getElementById("volumeSection").style.display = "block";
+
+  // ---- Feedback list ----
+  if (data.feedback.length === 0) {
+    document.getElementById("feedbackList").innerHTML =
+      '<li class="empty">No feedback comments yet.</li>';
+  } else {
+    document.getElementById("feedbackList").innerHTML = data.feedback.map(function (f) {
+      return (
+        '<li class="feedback-item">' +
+          '<div class="feedback-meta"><span class="score-tag">' + f.score + "/10</span> " + esc(f.date) + "</div>" +
+          '<div class="feedback-text">' + esc(f.comment) + "</div>" +
+        "</li>"
+      );
+    }).join("");
+  }
+  document.getElementById("feedbackSection").style.display = "block";
+}
+
+function drawTrend(data) {
+  var labels = data.trend.map(function (t) { return t.date.slice(5); }); // MM-DD
+  var datasets = [];
+  // Overall line first (bold purple)
+  datasets.push({
+    label: "Overall",
+    data: data.trend.map(function (t) { return t.overall; }),
+    borderColor: BRAND.purple,
+    backgroundColor: "rgba(124, 87, 252, 0.15)",
+    borderWidth: 3,
+    tension: 0.25,
+    spanGaps: true,
+    pointRadius: 0
+  });
+  data.config.departments.forEach(function (d) {
+    datasets.push({
+      label: d,
+      data: data.trend.map(function (t) { return t[d]; }),
+      borderColor: DEPT_COLORS[d] || BRAND.black,
+      borderWidth: 1.5,
+      tension: 0.25,
+      spanGaps: true,
+      pointRadius: 0,
+      borderDash: [4, 4]
+    });
+  });
+  new Chart(document.getElementById("trendChart"), {
+    type: "line",
+    data: { labels: labels, datasets: datasets },
+    options: {
+      responsive: true,
+      interaction: { mode: "index", intersect: false },
+      scales: {
+        y: { min: 0, max: 10, ticks: { stepSize: 2 } },
+        x: { ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } }
+      },
+      plugins: {
+        legend: { position: "bottom" },
+        tooltip: {
+          callbacks: {
+            label: function (ctx) {
+              return ctx.dataset.label + ": " + (ctx.parsed.y == null ? "no data" : ctx.parsed.y.toFixed(1));
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+function drawVolume(data) {
+  var labels = data.volume.map(function (v) { return v.date.slice(5); });
+  new Chart(document.getElementById("volumeChart"), {
+    type: "bar",
+    data: {
+      labels: labels,
+      datasets: [{
+        label: "Responses",
+        data: data.volume.map(function (v) { return v.count; }),
+        backgroundColor: BRAND.purple,
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: { beginAtZero: true, ticks: { stepSize: 1 } },
+        x: { ticks: { maxRotation: 0 } }
+      },
+      plugins: { legend: { display: false } }
+    }
+  });
+}
+
+function card(label, value, sub) {
+  return (
+    '<div class="card">' +
+      '<div class="label">' + esc(label) + "</div>" +
+      '<div class="value">' + esc(value) + "</div>" +
+      (sub ? '<div class="sub">' + esc(sub) + "</div>" : "") +
+    "</div>"
+  );
+}
+
+function esc(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+</script>
+</body>
+</html>

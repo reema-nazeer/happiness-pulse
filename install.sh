@@ -78,6 +78,15 @@ curl -sL "$BASE/launch.py" -o "$PULSE_DIR/launch.py" || fail "Download launch.py
 curl -sL "$BASE/pulse.sh" -o "$PULSE_DIR/pulse.sh" || fail "Download pulse.sh"
 chmod +x "$PULSE_DIR/pulse.sh"
 
+# Pull brand assets if present on the branch. Best-effort: the form uses an
+# inline SVG so it works even if these don't download — we just want them
+# locally for any future code that wants to reference them.
+mkdir -p "$PULSE_DIR/assets"
+curl -sL --fail "$BASE/assets/homey-logo.svg"        -o "$PULSE_DIR/assets/homey-logo.svg"        2>/dev/null
+curl -sL --fail "$BASE/assets/homey-logo.png"        -o "$PULSE_DIR/assets/homey-logo.png"        2>/dev/null
+curl -sL --fail "$BASE/assets/homey-logo-white.svg"  -o "$PULSE_DIR/assets/homey-logo-white.svg"  2>/dev/null
+curl -sL --fail "$BASE/assets/homey-logo-white.png"  -o "$PULSE_DIR/assets/homey-logo-white.png"  2>/dev/null
+
 if [ ! -s "$PULSE_DIR/pulse-form.html" ]; then
   fail "pulse-form.html is empty - check internet connection"
 fi
