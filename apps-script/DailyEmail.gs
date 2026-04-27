@@ -3,6 +3,24 @@ var HOMEY_EMAIL_TO = "department-leads@homey.co.uk";
 var HOMEY_EMAIL_CC = "say@homey.co.uk";
 var HOMEY_EMAIL_SENDER_NAME = "Homey Happiness Pulse";
 
+// Hosted brand asset. Once the v2 PR is merged, this will resolve from main.
+// Until then it 404s — most clients just hide a missing image and the rest
+// of the email renders fine.
+var HOMEY_LOGO_URL =
+  "https://raw.githubusercontent.com/reema-nazeer/happiness-pulse/main/assets/homey-logo.png";
+
+// Brand
+var COLOR_PURPLE = "#7C57FC";
+var COLOR_YELLOW = "#DBFF00";
+var COLOR_BLACK = "#040406";
+var COLOR_WHITE = "#FFFFFF";
+
+// Anonymity threshold: any department with fewer than this many responses
+// for the period is excluded from the breakdown table — its rows still feed
+// the overall total and average so the data isn't lost, just not attributed.
+var DEPT_MIN_RESPONSES = 2;
+var DEPARTMENTS = ["Operations", "Revenue", "Service", "Technology"];
+
 function dailySummary() {
   var ss = SpreadsheetApp.openById(HOMEY_SPREADSHEET_ID);
   var sheet = ss.getSheetByName("Responses");
@@ -12,208 +30,247 @@ function dailySummary() {
 
   var now = new Date();
   var todayKey = Utilities.formatDate(now, HOMEY_LONDON_TZ, "yyyy-MM-dd");
-  var todayLabel = Utilities.formatDate(now, HOMEY_LONDON_TZ, "dd/MM/yyyy");
-  var rows = readTodayResponses_(sheet, todayKey);
+  var todayLabel = Utilities.formatDate(now, HOMEY_LONDON_TZ, "EEEE d MMMM yyyy");
+  var rows = readResponsesForDate_(sheet, todayKey);
 
-  var subject = "Happiness Pulse - " + todayLabel;
+  var subject = "Happiness Pulse — " + Utilities.formatDate(now, HOMEY_LONDON_TZ, "dd/MM/yyyy");
   if (rows.length === 0) {
     MailApp.sendEmail({
       to: HOMEY_EMAIL_TO,
       cc: HOMEY_EMAIL_CC,
       subject: subject,
       name: HOMEY_EMAIL_SENDER_NAME,
-      htmlBody: buildNoResponsesHtml_()
+      htmlBody: buildNoResponsesHtml_(todayLabel)
     });
     return;
   }
 
-  var metrics = computeMetrics_(rows);
+  var summary = summariseRows_(rows);
   MailApp.sendEmail({
     to: HOMEY_EMAIL_TO,
     cc: HOMEY_EMAIL_CC,
     subject: subject,
     name: HOMEY_EMAIL_SENDER_NAME,
-    htmlBody: buildSummaryHtml_(todayLabel, metrics)
+    htmlBody: buildDailyHtml_(todayLabel, summary)
   });
 }
 
-function readTodayResponses_(sheet, todayKey) {
+/**
+ * Read every Responses row and keep just the ones for the given local date
+ * (Europe/London). Returns objects so downstream code doesn't have to
+ * remember column indices.
+ */
+function readResponsesForDate_(sheet, targetKey) {
   var lastRow = sheet.getLastRow();
-  if (lastRow < 2) {
-    return [];
-  }
+  if (lastRow < 2) return [];
 
-  var values = sheet.getRange(2, 1, lastRow - 1, 6).getValues();
-  var rows = [];
+  var lastCol = Math.max(sheet.getLastColumn(), 6);
+  var values = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+  var out = [];
   for (var i = 0; i < values.length; i++) {
     var row = values[i];
     var ts = row[0];
     var score = Number(row[1]);
     var feedback = row[2] || "";
+    var department = row[6] != null ? String(row[6]).trim() : "";
     var date = coerceToDate_(ts);
-    if (!date || isNaN(score)) {
-      continue;
-    }
+    if (!date || isNaN(score)) continue;
     var key = Utilities.formatDate(date, HOMEY_LONDON_TZ, "yyyy-MM-dd");
-    if (key === todayKey) {
-      rows.push({
-        score: score,
-        feedback: String(feedback).trim()
-      });
-    }
+    if (key !== targetKey) continue;
+    out.push({
+      score: score,
+      feedback: String(feedback).trim(),
+      department: department
+    });
   }
-  return rows;
+  return out;
 }
 
 function coerceToDate_(value) {
-  if (Object.prototype.toString.call(value) === "[object Date]") {
-    return value;
-  }
+  if (Object.prototype.toString.call(value) === "[object Date]") return value;
   var parsed = new Date(value);
   return isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function computeMetrics_(rows) {
+/**
+ * Aggregate a list of response rows into:
+ *   total   — number of responses
+ *   average — overall average (across everyone, including those without a dept)
+ *   feedback — list of {score, comment} for every non-empty comment
+ *               (no department attached — anonymity)
+ *   departments — only those meeting DEPT_MIN_RESPONSES
+ *   hiddenDepartments — count of departments excluded for being below threshold
+ */
+function summariseRows_(rows) {
   var total = rows.length;
   var sum = 0;
-  var highest = -Infinity;
-  var lowest = Infinity;
-  var distribution = {};
   var feedback = [];
-  var i;
+  var byDept = {};
 
-  for (i = 1; i <= 10; i++) {
-    distribution[i] = 0;
+  for (var i = 0; i < DEPARTMENTS.length; i++) {
+    byDept[DEPARTMENTS[i]] = { total: 0, sum: 0 };
   }
 
   for (i = 0; i < rows.length; i++) {
-    var score = rows[i].score;
-    sum += score;
-    if (score > highest) highest = score;
-    if (score < lowest) lowest = score;
-    if (distribution[score] !== undefined) {
-      distribution[score]++;
+    var r = rows[i];
+    sum += r.score;
+    if (r.feedback) {
+      feedback.push({ score: r.score, comment: r.feedback });
     }
-    if (rows[i].feedback) {
-      feedback.push(rows[i].feedback);
+    if (byDept.hasOwnProperty(r.department)) {
+      byDept[r.department].total++;
+      byDept[r.department].sum += r.score;
     }
   }
 
-  var average = total === 0 ? 0 : sum / total;
+  var visibleDepts = [];
+  var hiddenDepartments = 0;
+  for (i = 0; i < DEPARTMENTS.length; i++) {
+    var d = DEPARTMENTS[i];
+    var stats = byDept[d];
+    if (stats.total >= DEPT_MIN_RESPONSES) {
+      visibleDepts.push({
+        name: d,
+        total: stats.total,
+        average: stats.sum / stats.total
+      });
+    } else if (stats.total > 0) {
+      hiddenDepartments++;
+    }
+  }
+
   return {
     total: total,
-    average: average,
-    highest: highest,
-    lowest: lowest,
-    distribution: distribution,
-    feedback: feedback
+    average: total === 0 ? 0 : sum / total,
+    feedback: feedback,
+    departments: visibleDepts,
+    hiddenDepartments: hiddenDepartments
   };
 }
 
-function buildSummaryHtml_(todayLabel, metrics) {
-  var banner = sentimentBanner_(metrics.average);
-  var maxCount = 1;
-  for (var s = 1; s <= 10; s++) {
-    if (metrics.distribution[s] > maxCount) {
-      maxCount = metrics.distribution[s];
-    }
-  }
+// ---------- HTML rendering ----------
 
-  var distributionHtml = "";
-  for (var score = 1; score <= 10; score++) {
-    var count = metrics.distribution[score] || 0;
-    var widthPct = Math.max(6, Math.round((count / maxCount) * 100));
-    distributionHtml +=
-      '<tr>' +
-        '<td style="padding:6px 8px 6px 0;color:#AAAAAA;font-size:12px;width:24px;">' + score + "</td>" +
-        '<td style="padding:6px 0;">' +
-          '<div style="height:12px;border-radius:6px;background:' + scoreColor_(score) + ";width:" + widthPct + '%;"></div>' +
-        "</td>" +
-        '<td style="padding:6px 0 6px 8px;color:#CCCCCC;font-size:12px;width:30px;text-align:right;">' + count + "</td>" +
-      "</tr>";
-  }
+function buildDailyHtml_(label, summary) {
+  return wrap_(label, [
+    overallSection_(summary),
+    departmentSection_(summary),
+    feedbackSection_(summary.feedback)
+  ].join(""));
+}
 
-  var feedbackHtml = metrics.feedback.length
-    ? "<ul style=\"padding-left:18px;margin:0;\">" +
-        metrics.feedback.map(function(item) {
-          return '<li style="margin-bottom:8px;color:#E5E5E5;line-height:1.5;">' + escapeHtml_(item) + "</li>";
-        }).join("") +
-      "</ul>"
-    : '<p style="margin:0;color:#888888;">No written feedback today.</p>';
-
-  return (
-    '<div style="background:#0A0A0A;padding:24px 12px;font-family:Arial,Helvetica,sans-serif;">' +
-      '<div style="max-width:600px;margin:0 auto;background:#040406;border-radius:16px;border:1px solid #1A1A1A;overflow:hidden;">' +
-        '<div style="padding:20px 24px;border-bottom:1px solid #1A1A1A;">' +
-          '<div style="font-size:12px;letter-spacing:0.8px;text-transform:uppercase;color:#DBFF00;margin-bottom:6px;">Homey</div>' +
-          '<h1 style="margin:0;color:#FFFFFF;font-size:24px;line-height:1.2;">Daily Happiness Pulse</h1>' +
-          '<p style="margin:8px 0 0;color:#AAAAAA;font-size:13px;">' + todayLabel + "</p>" +
-        "</div>" +
-        '<div style="padding:20px 24px;">' +
-          '<div style="background:#0F0F12;border:1px solid #222222;border-radius:12px;padding:16px;margin-bottom:16px;">' +
-            '<table style="width:100%;border-collapse:collapse;">' +
-              '<tr>' +
-                metricCell_("Total responses", metrics.total) +
-                metricCell_("Average score", metrics.average.toFixed(1)) +
-              "</tr>" +
-              '<tr>' +
-                metricCell_("Highest score", metrics.highest) +
-                metricCell_("Lowest score", metrics.lowest) +
-              "</tr>" +
-            "</table>" +
-          "</div>" +
-          '<div style="background:' + banner.bg + ";color:" + banner.fg + ';padding:12px 14px;border-radius:10px;font-weight:bold;font-size:13px;margin-bottom:16px;">' +
-            banner.text +
-          "</div>" +
-          '<h2 style="margin:0 0 10px;color:#FFFFFF;font-size:16px;">Score distribution</h2>' +
-          '<table style="width:100%;border-collapse:collapse;margin-bottom:18px;">' + distributionHtml + "</table>" +
-          '<h2 style="margin:0 0 10px;color:#FFFFFF;font-size:16px;">Anonymous feedback</h2>' +
-          feedbackHtml +
-        "</div>" +
-        '<div style="padding:14px 24px;border-top:1px solid #1A1A1A;color:#777777;font-size:12px;">This is an automated summary from Homey Happiness Pulse v2</div>' +
-      "</div>" +
-    "</div>"
+function buildNoResponsesHtml_(label) {
+  return wrap_(label,
+    '<p style="margin:0;color:' + COLOR_BLACK + ';font-size:14px;line-height:1.6;">' +
+      'No responses today — consider checking if the pulse is installed on all devices.' +
+    '</p>'
   );
 }
 
-function buildNoResponsesHtml_() {
+function wrap_(label, innerHtml) {
   return (
-    '<div style="background:#0A0A0A;padding:24px 12px;font-family:Arial,Helvetica,sans-serif;">' +
-      '<div style="max-width:600px;margin:0 auto;background:#040406;border-radius:16px;border:1px solid #1A1A1A;overflow:hidden;">' +
-        '<div style="padding:22px 24px;">' +
-          '<h1 style="margin:0 0 8px;color:#FFFFFF;font-size:22px;">Daily Happiness Pulse</h1>' +
-          '<p style="margin:0;color:#AAAAAA;line-height:1.6;">No responses today - consider checking if the pulse is installed on all devices.</p>' +
-        "</div>" +
-        '<div style="padding:14px 24px;border-top:1px solid #1A1A1A;color:#777777;font-size:12px;">This is an automated summary from Homey Happiness Pulse v2</div>' +
-      "</div>" +
-    "</div>"
+    '<div style="background:#F5F4FB;padding:24px 12px;font-family:Inter,-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif;">' +
+      '<div style="max-width:600px;margin:0 auto;background:' + COLOR_WHITE + ';border-radius:16px;border:1px solid #ECECEE;overflow:hidden;">' +
+
+        // Header — Midnight Black with the brand logo
+        '<div style="background:' + COLOR_BLACK + ';padding:24px 24px 22px;text-align:center;">' +
+          '<img src="' + HOMEY_LOGO_URL + '" alt="Homey" height="40" style="display:block;margin:0 auto 14px;height:40px;width:auto;" />' +
+          '<div style="font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:' + COLOR_YELLOW + ';font-weight:600;margin-bottom:6px;">Daily Happiness Pulse</div>' +
+          '<div style="color:' + COLOR_WHITE + ';font-size:14px;font-weight:500;opacity:0.85;">' + escapeHtml_(label) + '</div>' +
+        '</div>' +
+
+        '<div style="padding:24px;">' + innerHtml + '</div>' +
+
+        '<div style="padding:14px 24px 18px;border-top:1px solid #ECECEE;color:#9aa0a6;font-size:11px;line-height:1.6;">' +
+          'Departments with fewer than ' + DEPT_MIN_RESPONSES + ' responses are not shown to protect anonymity. Their data still feeds the overall total and average.' +
+        '</div>' +
+      '</div>' +
+    '</div>'
+  );
+}
+
+function overallSection_(summary) {
+  var avgWidth = Math.max(6, Math.round((summary.average / 10) * 100));
+  return (
+    '<h2 style="margin:0 0 12px;color:' + COLOR_BLACK + ';font-size:14px;font-weight:600;letter-spacing:-0.1px;">Overall today</h2>' +
+    '<div style="background:#FAFAFC;border:1px solid #ECECEE;border-radius:12px;padding:16px;margin-bottom:20px;">' +
+      '<table style="width:100%;border-collapse:collapse;margin-bottom:12px;"><tr>' +
+        metricCell_("Responses", String(summary.total)) +
+        metricCell_("Average score", summary.average.toFixed(1) + " / 10") +
+      '</tr></table>' +
+      '<div style="height:10px;background:#ECECEE;border-radius:5px;overflow:hidden;">' +
+        '<div style="height:100%;width:' + avgWidth + '%;background:' + COLOR_PURPLE + ';border-radius:5px;"></div>' +
+      '</div>' +
+    '</div>'
+  );
+}
+
+function departmentSection_(summary) {
+  if (summary.departments.length === 0) {
+    return (
+      '<h2 style="margin:0 0 12px;color:' + COLOR_BLACK + ';font-size:14px;font-weight:600;">By department</h2>' +
+      '<p style="margin:0 0 20px;color:#9aa0a6;font-size:13px;line-height:1.6;">' +
+        'No department reached the ' + DEPT_MIN_RESPONSES + '-response anonymity threshold today.' +
+      '</p>'
+    );
+  }
+  var rows = summary.departments.map(function (d) {
+    var w = Math.max(6, Math.round((d.average / 10) * 100));
+    return (
+      '<tr>' +
+        '<td style="padding:10px 0;color:' + COLOR_BLACK + ';font-size:13px;font-weight:500;width:120px;">' + escapeHtml_(d.name) + '</td>' +
+        '<td style="padding:10px 0;color:#9aa0a6;font-size:12px;width:60px;">' + d.total + '</td>' +
+        '<td style="padding:10px 0;">' +
+          '<div style="display:flex;align-items:center;gap:10px;">' +
+            '<div style="flex:1;height:8px;background:#ECECEE;border-radius:4px;overflow:hidden;">' +
+              '<div style="height:100%;width:' + w + '%;background:' + COLOR_PURPLE + ';border-radius:4px;"></div>' +
+            '</div>' +
+            '<div style="color:' + COLOR_BLACK + ';font-size:13px;font-weight:600;min-width:36px;text-align:right;">' + d.average.toFixed(1) + '</div>' +
+          '</div>' +
+        '</td>' +
+      '</tr>'
+    );
+  }).join("");
+  return (
+    '<h2 style="margin:0 0 12px;color:' + COLOR_BLACK + ';font-size:14px;font-weight:600;">By department</h2>' +
+    '<table style="width:100%;border-collapse:collapse;margin-bottom:20px;">' +
+      '<thead><tr>' +
+        '<th style="text-align:left;padding:0 0 8px;color:#9aa0a6;font-size:11px;font-weight:600;letter-spacing:0.6px;text-transform:uppercase;">Department</th>' +
+        '<th style="text-align:left;padding:0 0 8px;color:#9aa0a6;font-size:11px;font-weight:600;letter-spacing:0.6px;text-transform:uppercase;">Responses</th>' +
+        '<th style="text-align:left;padding:0 0 8px;color:#9aa0a6;font-size:11px;font-weight:600;letter-spacing:0.6px;text-transform:uppercase;">Average</th>' +
+      '</tr></thead>' +
+      '<tbody>' + rows + '</tbody>' +
+    '</table>'
+  );
+}
+
+function feedbackSection_(feedback) {
+  if (!feedback.length) {
+    return (
+      '<h2 style="margin:0 0 12px;color:' + COLOR_BLACK + ';font-size:14px;font-weight:600;">Anonymous feedback</h2>' +
+      '<p style="margin:0;color:#9aa0a6;font-size:13px;">No written feedback today.</p>'
+    );
+  }
+  var items = feedback.map(function (f) {
+    return (
+      '<li style="margin:0 0 12px;padding:12px 14px;background:#FAFAFC;border-left:3px solid ' + COLOR_PURPLE + ';border-radius:6px;list-style:none;">' +
+        '<div style="color:#9aa0a6;font-size:11px;font-weight:600;letter-spacing:0.4px;text-transform:uppercase;margin-bottom:4px;">Score ' + f.score + '/10</div>' +
+        '<div style="color:' + COLOR_BLACK + ';font-size:13px;line-height:1.6;">' + escapeHtml_(f.comment) + '</div>' +
+      '</li>'
+    );
+  }).join("");
+  return (
+    '<h2 style="margin:0 0 12px;color:' + COLOR_BLACK + ';font-size:14px;font-weight:600;">Anonymous feedback</h2>' +
+    '<ul style="padding:0;margin:0;">' + items + '</ul>'
   );
 }
 
 function metricCell_(label, value) {
   return (
-    '<td style="padding:8px;vertical-align:top;">' +
-      '<div style="color:#888888;font-size:11px;text-transform:uppercase;letter-spacing:0.6px;">' + label + "</div>" +
-      '<div style="color:#FFFFFF;font-size:20px;font-weight:bold;margin-top:4px;">' + value + "</div>" +
-    "</td>"
+    '<td style="padding:0 8px 0 0;vertical-align:top;width:50%;">' +
+      '<div style="color:#9aa0a6;font-size:11px;text-transform:uppercase;letter-spacing:0.6px;font-weight:600;">' + label + '</div>' +
+      '<div style="color:' + COLOR_BLACK + ';font-size:22px;font-weight:700;margin-top:4px;letter-spacing:-0.3px;">' + value + '</div>' +
+    '</td>'
   );
-}
-
-function sentimentBanner_(avg) {
-  if (avg >= 7) {
-    return { text: "The team is feeling great today!", bg: "#0E2A1A", fg: "#8CFFB3" };
-  }
-  if (avg >= 5) {
-    return { text: "Room for improvement", bg: "#2A260A", fg: "#FFE680" };
-  }
-  return { text: "The team needs support today", bg: "#2A0E0E", fg: "#FF9A9A" };
-}
-
-function scoreColor_(score) {
-  if (score <= 3) return "#FF4444";
-  if (score <= 5) return "#FF8C00";
-  if (score <= 7) return "#DBFF00";
-  return "#00CC66";
 }
 
 function escapeHtml_(str) {
