@@ -4,44 +4,286 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Homey Pulse</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Helvetica Neue',sans-serif;background:#FFFFFF;min-height:100vh;display:flex;flex-direction:column;overflow:hidden;-webkit-user-select:none;user-select:none}
-.header{background:#040406;padding:32px 36px 28px;text-align:center;position:relative;overflow:hidden}
-.hg1{position:absolute;top:-40px;right:-40px;width:160px;height:160px;background:#7C57FC;opacity:.15;border-radius:50%}
-.hg2{position:absolute;bottom:-20px;left:-20px;width:100px;height:100px;background:#DBFF00;opacity:.1;border-radius:50%}
-.hc{position:relative;z-index:1}
-.header h2{font-size:21px;font-weight:600;color:#FFF;margin:16px 0 6px}
-.header p{font-size:13px;color:rgba(255,255,255,.5)}
-.body{padding:24px 36px 28px;flex:1;display:flex;flex-direction:column}
-.ql{font-size:15px;font-weight:600;color:#040406;display:block;margin-bottom:14px}
-.ol{font-weight:400;color:#aaa}
-.emoji-display{text-align:center;margin-bottom:6px;font-size:52px;transition:all .2s ease}
-.slider-row{display:flex;align-items:center;gap:14px;margin-bottom:4px}
-.slider-row span{font-size:13px;color:#bbb;min-width:16px}
-.slider-row span:last-child{text-align:right}
-input[type=range]{-webkit-appearance:none;flex:1;height:8px;border-radius:4px;background:linear-gradient(to right,#E24B4A,#FAC775,#7C57FC);outline:none}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#FFF;border:3px solid #7C57FC;cursor:pointer;transition:transform .15s}
-input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.15)}
-.score-display{text-align:center;margin-bottom:20px}
-.score-badge{display:inline-block;background:#040406;color:#DBFF00;font-size:28px;font-weight:700;padding:6px 22px;border-radius:12px;min-width:50px;transition:transform .15s}
-.mood-label{display:block;font-size:13px;color:#888;margin-top:5px;font-weight:500;transition:color .2s}
-textarea{width:100%;border:2px solid #f0f0f0;border-radius:12px;padding:12px 14px;font-size:14px;font-family:inherit;min-height:72px;resize:none;outline:none;color:#040406;background:#fafafa;transition:border-color .2s,background .2s;-webkit-user-select:text;user-select:text}
-textarea:focus{border-color:#7C57FC;background:#FFF}
-textarea::placeholder{color:#ccc}
-.submit-btn{width:100%;padding:14px;background:#7C57FC;color:#FFF;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;transition:all .2s;margin-top:16px;letter-spacing:.3px}
-.submit-btn:hover{background:#6B45EB;transform:translateY(-1px)}
-.submit-btn:active{transform:scale(.98)}
-.submit-btn:disabled{cursor:default;transform:none}
-.footer-note{font-size:11px;color:#ccc;text-align:center;margin-top:12px}
-.thank-you{display:none;align-items:center;justify-content:center;flex-direction:column;min-height:100vh;background:#FFFFFF}
-.ty-emoji{font-size:68px;margin-bottom:18px;animation:bounceIn .5s ease}
-.thank-you h2{font-size:26px;font-weight:700;color:#040406;margin-bottom:6px}
-.thank-you p{font-size:15px;color:#888}
-@keyframes bounceIn{0%{transform:scale(0)}50%{transform:scale(1.2)}100%{transform:scale(1)}}
-.confetti{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:999}
-.cp{position:absolute;top:-20px;animation:cfall linear forwards}
-@keyframes cfall{0%{transform:translateY(0) rotate(0deg);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}
+/* Brand
+   Strike Yellow:  #DBFF00
+   Storm Purple:   #7C57FC
+   Midnight Black: #040406
+   Flash White:    #FFFFFF
+   8px-based spacing scale used throughout. */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  background: #FFFFFF;
+  color: #040406;
+  -webkit-user-select: none;
+  user-select: none;
+}
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ---------- Header ---------- */
+.header {
+  background: #040406;
+  padding: 24px 32px 20px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.hg1 { position: absolute; top: -40px; right: -40px; width: 160px; height: 160px; background: #7C57FC; opacity: .15; border-radius: 50%; }
+.hg2 { position: absolute; bottom: -20px; left: -20px; width: 100px; height: 100px; background: #DBFF00; opacity: .1; border-radius: 50%; }
+.hc { position: relative; z-index: 1; }
+.logo { display: block; margin: 0 auto 16px; height: 60px; width: auto; }
+.header h2 { font-size: 20px; font-weight: 600; color: #FFFFFF; margin: 0 0 4px; letter-spacing: -0.2px; }
+.header p { font-size: 13px; color: rgba(255, 255, 255, 0.55); font-weight: 400; }
+
+/* ---------- Body ---------- */
+.body {
+  padding: 24px 32px 24px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.ql {
+  font-size: 14px;
+  font-weight: 600;
+  color: #040406;
+  display: block;
+  margin-bottom: 12px;
+  letter-spacing: -0.1px;
+}
+.ql .ol { font-weight: 400; color: #9aa0a6; }
+
+/* ---------- Department pills ---------- */
+.pills {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+@media (min-width: 520px) {
+  .pills { grid-template-columns: repeat(4, 1fr); }
+}
+.pill {
+  appearance: none;
+  border: 1.5px solid #7C57FC;
+  background: transparent;
+  color: #7C57FC;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 8px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.pill:hover { background: rgba(124, 87, 252, 0.06); }
+.pill.is-selected {
+  background: #7C57FC;
+  color: #FFFFFF;
+  border-color: #7C57FC;
+}
+.pill:focus-visible { outline: 2px solid #7C57FC; outline-offset: 2px; }
+
+/* ---------- Slider + emoji ---------- */
+.emoji-display {
+  text-align: center;
+  margin-bottom: 8px;
+  font-size: 52px;
+  transition: transform 200ms ease;
+}
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+.slider-row span {
+  font-size: 12px;
+  color: #9aa0a6;
+  min-width: 16px;
+  font-weight: 500;
+}
+.slider-row span:last-child { text-align: right; }
+input[type=range] {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(to right, #E24B4A, #FAC775, #7C57FC);
+  outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #DBFF00;
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 2px 6px rgba(4, 4, 6, 0.18);
+  cursor: pointer;
+  transition: transform 150ms ease;
+}
+input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.12); }
+input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px rgba(124, 87, 252, 0.25); }
+
+.score-display { text-align: center; margin-bottom: 24px; }
+.score-badge {
+  display: inline-block;
+  background: #040406;
+  color: #DBFF00;
+  font-size: 28px;
+  font-weight: 700;
+  padding: 6px 24px;
+  border-radius: 12px;
+  min-width: 50px;
+  transition: transform 150ms ease;
+}
+.mood-label {
+  display: block;
+  font-size: 13px;
+  color: #888;
+  margin-top: 6px;
+  font-weight: 500;
+  transition: color 200ms ease;
+}
+
+/* ---------- Textarea (force readable colours, fix the typing-not-visible bug) ---------- */
+textarea {
+  width: 100%;
+  border: 2px solid #ECECEE;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 14px;
+  font-family: 'Inter', inherit;
+  min-height: 80px;
+  resize: none;
+  /* The bug fix: force colours regardless of dark-mode UA stylesheets, force a
+     visible caret, and never let user-agent inverted colours win. */
+  color: #040406 !important;
+  background: #FFFFFF !important;
+  caret-color: #7C57FC;
+  -webkit-text-fill-color: #040406 !important; /* Safari sometimes overrides color */
+  -webkit-user-select: text;
+  user-select: text;
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+textarea:focus {
+  outline: 2px solid #7C57FC;
+  outline-offset: 2px;
+  border-color: #7C57FC;
+}
+textarea::placeholder { color: #b8bcc4; }
+
+/* ---------- Submit button ---------- */
+.submit-btn {
+  width: 100%;
+  padding: 14px;
+  background: #7C57FC;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 200ms ease, transform 150ms ease, opacity 150ms ease;
+  margin-top: 16px;
+  letter-spacing: 0.2px;
+}
+.submit-btn:hover:not(:disabled) { background: #6B45EB; transform: translateY(-1px); }
+.submit-btn:active:not(:disabled) { transform: scale(0.98); }
+.submit-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.submit-btn:focus-visible { outline: 2px solid #DBFF00; outline-offset: 2px; }
+
+.footer-note {
+  font-size: 11px;
+  color: #b8bcc4;
+  text-align: center;
+  margin-top: 12px;
+  font-weight: 400;
+}
+.change-link {
+  display: block;
+  font-size: 12px;
+  color: #7C57FC;
+  text-align: center;
+  margin-top: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  text-decoration: underline;
+  background: transparent;
+  border: 0;
+  width: 100%;
+  padding: 4px;
+  font-family: inherit;
+}
+.change-link:hover { color: #5A3BD4; }
+
+/* ---------- Thank you ---------- */
+.thank-you {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  min-height: 100vh;
+  background: #FFFFFF;
+  text-align: center;
+  padding: 24px;
+}
+.success-mark {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: #7C57FC;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+  transform: scale(0);
+  animation: scaleIn 200ms ease-out forwards;
+  box-shadow: 0 4px 16px rgba(124, 87, 252, 0.35);
+}
+.success-mark svg { width: 32px; height: 32px; }
+.success-mark .check {
+  stroke: #DBFF00;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  stroke-dasharray: 36;
+  stroke-dashoffset: 36;
+  animation: drawCheck 300ms 200ms ease-out forwards;
+}
+.thank-you h2 {
+  font-size: 22px;
+  font-weight: 700;
+  color: #040406;
+  margin-bottom: 6px;
+  opacity: 0;
+  animation: fadeIn 200ms 400ms ease-out forwards;
+  letter-spacing: -0.3px;
+}
+.thank-you p {
+  font-size: 14px;
+  color: #888;
+  opacity: 0;
+  animation: fadeIn 200ms 500ms ease-out forwards;
+}
+@keyframes scaleIn { to { transform: scale(1); } }
+@keyframes drawCheck { to { stroke-dashoffset: 0; } }
+@keyframes fadeIn { to { opacity: 1; } }
 </style>
 </head>
 <body>
@@ -51,7 +293,9 @@ textarea::placeholder{color:#ccc}
     <div class="hg1"></div>
     <div class="hg2"></div>
     <div class="hc">
-      <svg width="100" height="41" viewBox="0 0 2500 1027" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- Inline SVG (white) — kept inline because launch.py renders the form
+           from a tmp file outside the repo, so a relative <img src> would 404. -->
+      <svg class="logo" viewBox="0 0 2500 1027" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Homey">
         <path d="M916.055 464.708C907.929 420.203 888.144 382.675 856.659 352.126C814.238 310.982 759.947 290.432 693.828 290.432C627.709 290.432 573.46 310.982 530.997 352.126C499.512 382.675 479.727 420.203 471.6 464.708V457.475C471.6 431.18 469.771 408.374 466.112 389.143C462.453 369.911 456.198 352.594 447.348 337.192C438.498 321.832 425.989 310.174 409.821 302.303C393.61 294.389 373.826 290.474 350.424 290.474C317.79 290.474 288.645 299.835 263.073 318.513C243.204 333.022 226.099 353.956 212.016 374.038L308.515 0L0 520.062L114.411 536.869L0 730.462H200.613V499.852C200.613 468.835 207.634 443.476 221.632 423.819C235.63 404.162 252.99 394.334 273.668 394.334C294.346 394.334 308.472 401.141 316.939 414.714C325.363 428.287 329.576 451.007 329.576 482.876V730.504H471.6V562.695C479.685 607.243 499.427 644.728 530.785 675.022C573.077 715.868 627.453 736.291 693.828 736.291C760.203 736.291 814.536 715.868 856.871 675.022C888.272 644.728 907.971 607.243 916.098 562.695V730.504H934.776V731.1H937.159H1058.08V500.49C1058.08 469.473 1065.1 444.115 1079.1 424.457C1093.1 404.8 1110.46 394.972 1131.13 394.972C1151.81 394.972 1165.94 401.779 1174.41 415.352C1182.83 428.925 1187.04 451.645 1187.04 483.514V731.142H1329.2V500.533C1329.2 469.516 1336.22 444.157 1350.21 424.5C1364.21 404.843 1381.57 395.014 1402.25 395.014C1422.93 395.014 1437.05 401.822 1445.52 415.395C1453.95 428.967 1458.16 451.688 1458.16 483.556V731.185H1600.18V570.099C1604.44 592.181 1611.8 612.774 1622.44 631.878C1640.13 663.619 1666.05 688.807 1700.17 707.486C1734.29 726.164 1773.95 735.525 1819.13 735.525C1874.36 735.525 1919.93 722.931 1955.84 697.7C1991.75 672.511 2016.09 639.537 2028.89 598.819L1898.32 568.907C1894.78 577.757 1891.29 585.203 1887.89 591.117C1884.49 597.074 1879.98 603.244 1874.4 609.626C1868.83 616.008 1861.94 620.858 1853.81 624.177C1845.68 627.496 1836.28 629.155 1825.64 629.155C1801.99 629.155 1782.54 621.624 1767.27 606.52C1752.04 591.415 1742.8 569.758 1739.53 541.507H2028V569.333C2028 595.627 2029.83 618.433 2033.49 637.665C2037.15 656.896 2043.4 674.213 2052.25 689.616C2061.1 704.975 2073.61 716.634 2089.78 724.505C2105.99 732.419 2125.78 736.333 2149.18 736.333C2181.81 736.333 2210.96 726.973 2236.53 708.294C2256.4 693.785 2273.5 672.852 2287.59 652.769L2191.04 1026.81L2499.56 506.745L2385.15 489.939L2499.56 296.346H2298.95V526.955C2298.95 557.973 2291.93 583.331 2277.93 602.988C2263.93 622.645 2246.57 632.474 2225.89 632.474C2205.21 632.474 2191.09 625.666 2182.62 612.094C2174.2 598.521 2169.98 575.8 2169.98 543.932V296.303H2027.96V479.599C2023.83 427.946 2004.9 384.675 1971.07 349.914C1932.57 310.302 1881.89 290.517 1819.05 290.517C1773.61 290.517 1733.74 301.239 1699.49 322.726C1665.2 344.212 1639.37 372.506 1621.97 407.694C1611.54 428.797 1604.27 451.263 1600.1 475.047V458.198C1600.1 431.903 1598.27 409.098 1594.61 389.866C1590.95 370.634 1584.69 353.317 1575.85 337.915C1567 322.555 1554.49 310.897 1538.32 303.026C1522.11 295.112 1502.32 291.198 1478.92 291.198C1446.29 291.198 1417.14 300.558 1391.57 319.237C1366 337.915 1344.94 367.231 1329.15 391.738L1325.03 398.716C1324.56 395.695 1324.05 392.717 1323.54 389.866C1319.88 370.634 1313.62 353.317 1304.77 337.915C1295.92 322.555 1283.41 310.897 1267.25 303.026C1251.03 295.112 1231.25 291.198 1207.85 291.198C1175.21 291.198 1146.07 300.558 1120.5 319.237C1094.93 337.915 1073.87 367.231 1058.08 391.738V296.814H1014.77L916.055 464.835V464.708ZM693.828 625.751C640.218 625.751 613.455 588.352 613.455 513.553C613.455 438.754 640.26 400.971 693.828 400.971C747.396 400.971 773.818 438.498 773.818 513.553C773.818 588.607 747.14 625.751 693.828 625.751ZM1744.42 460.793C1750.42 440.285 1759.57 424.5 1771.95 413.438C1784.33 402.375 1799.22 396.801 1816.62 396.801C1835.39 396.801 1850.62 402.545 1862.32 414.033C1874.02 425.521 1881.51 441.094 1884.74 460.793H1744.38H1744.42Z" fill="white"/>
       </svg>
       <h2>Good morning!</h2>
@@ -59,92 +303,154 @@ textarea::placeholder{color:#ccc}
     </div>
   </div>
   <div class="body">
+    <p class="ql">Which team are you on? <span class="ol">(required)</span></p>
+    <div class="pills" role="group" aria-label="Department">
+      <button type="button" class="pill" data-dept="Operations">Operations</button>
+      <button type="button" class="pill" data-dept="Revenue">Revenue</button>
+      <button type="button" class="pill" data-dept="Service">Service</button>
+      <button type="button" class="pill" data-dept="Technology">Technology</button>
+    </div>
+
     <p class="ql">How happy are you today?</p>
     <div class="emoji-display" id="emoji">😐</div>
     <div class="slider-row">
       <span>1</span>
-      <input type="range" min="1" max="10" value="5" step="1" id="sl" />
+      <input type="range" min="1" max="10" value="5" step="1" id="sl" aria-label="Happiness score" />
       <span>10</span>
     </div>
     <div class="score-display">
       <span class="score-badge" id="sv">5</span>
       <span class="mood-label" id="ml">Doing alright</span>
     </div>
-    <p class="ql">Anything on your mind?</p>
-    <textarea id="fb" placeholder="Share your thoughts..."></textarea>
-    <button class="submit-btn" id="sb">Submit</button>
+
+    <p class="ql">Anything on your mind? <span class="ol">(optional)</span></p>
+    <textarea id="fb" placeholder="Share your thoughts..." spellcheck="true" autocomplete="off"></textarea>
+
+    <button class="submit-btn" id="sb" disabled>Submit</button>
+    <button type="button" class="change-link" id="cdept" style="display:none">Change department</button>
     <p class="footer-note">Your response is 100% anonymous</p>
   </div>
 </div>
 
 <div id="tv" class="thank-you">
-  <div class="confetti" id="cf"></div>
-  <div class="ty-emoji">🎉</div>
-  <h2>Thank you!</h2>
-  <p>Have an amazing day.</p>
+  <div class="success-mark" aria-hidden="true">
+    <svg viewBox="0 0 32 32">
+      <path class="check" d="M7 16.5 L13.5 23 L25 10" />
+    </svg>
+  </div>
+  <h2>Thanks for sharing</h2>
+  <p>Have a great day.</p>
 </div>
 
 <script>
 var WEBHOOK_URL = "__WEBHOOK_URL__";
-var sl = document.getElementById("sl");
-var sv = document.getElementById("sv");
-var em = document.getElementById("emoji");
-var ml = document.getElementById("ml");
-var fb = document.getElementById("fb");
-var sb = document.getElementById("sb");
-var fv = document.getElementById("fv");
-var tv = document.getElementById("tv");
+
+var sl  = document.getElementById("sl");
+var sv  = document.getElementById("sv");
+var em  = document.getElementById("emoji");
+var ml  = document.getElementById("ml");
+var fb  = document.getElementById("fb");
+var sb  = document.getElementById("sb");
+var fv  = document.getElementById("fv");
+var tv  = document.getElementById("tv");
+var cdept = document.getElementById("cdept");
 
 var moods = {
-  1:  { e: "\uD83D\uDE22", l: "Really struggling", c: "#E24B4A" },
-  2:  { e: "\uD83D\uDE1E", l: "Not great", c: "#E24B4A" },
-  3:  { e: "\uD83D\uDE1F", l: "Could be better", c: "#D85A30" },
-  4:  { e: "\uD83D\uDE15", l: "A bit down", c: "#D85A30" },
-  5:  { e: "\uD83D\uDE10", l: "Doing alright", c: "#BA7517" },
-  6:  { e: "\uD83D\uDE42", l: "Pretty decent", c: "#BA7517" },
-  7:  { e: "\uD83D\uDE0A", l: "Feeling good", c: "#639922" },
-  8:  { e: "\uD83D\uDE04", l: "Great day!", c: "#7C57FC" },
-  9:  { e: "\uD83E\uDD29", l: "Absolutely buzzing!", c: "#7C57FC" },
-  10: { e: "\uD83D\uDE80", l: "On top of the world!", c: "#7C57FC" }
+  1:  { e: "😢", l: "Really struggling",      c: "#E24B4A" },
+  2:  { e: "😞", l: "Not great",              c: "#E24B4A" },
+  3:  { e: "😟", l: "Could be better",        c: "#D85A30" },
+  4:  { e: "😕", l: "A bit down",             c: "#D85A30" },
+  5:  { e: "😐", l: "Doing alright",          c: "#BA7517" },
+  6:  { e: "🙂", l: "Pretty decent",          c: "#BA7517" },
+  7:  { e: "😊", l: "Feeling good",           c: "#639922" },
+  8:  { e: "😄", l: "Great day!",             c: "#7C57FC" },
+  9:  { e: "🤩", l: "Absolutely buzzing!",    c: "#7C57FC" },
+  10: { e: "🚀", l: "On top of the world!",   c: "#7C57FC" }
 };
 
-function upd(v) {
-  var m = moods[Math.round(v)];
-  sv.textContent = Math.round(v);
+var state = {
+  department: null,
+  scoreTouched: false
+};
+
+function updScore(v) {
+  var n = Math.round(v);
+  var m = moods[n];
+  sv.textContent = n;
   em.textContent = m.e;
   ml.textContent = m.l;
   ml.style.color = m.c;
   sv.style.transform = "scale(1.1)";
   em.style.transform = "scale(1.15)";
-  setTimeout(function(){ sv.style.transform = "scale(1)"; em.style.transform = "scale(1)"; }, 120);
+  setTimeout(function () {
+    sv.style.transform = "scale(1)";
+    em.style.transform = "scale(1)";
+  }, 120);
 }
 
-sl.addEventListener("input", function(){ upd(sl.value); });
+function refreshSubmitGate() {
+  // Submit stays disabled until both department and score are set.
+  // (The slider has a default value, but we only count it as "set" once
+  // the user has actually moved it — otherwise people submit a default 5
+  // without thinking about it.)
+  var ready = !!state.department && state.scoreTouched;
+  sb.disabled = !ready;
+}
 
-function confetti() {
-  var c = document.getElementById("cf");
-  var cols = ["#DBFF00","#7C57FC","#E24B4A","#FFFFFF","#040406"];
-  for (var i = 0; i < 80; i++) {
-    var p = document.createElement("div");
-    p.className = "cp";
-    p.style.left = Math.random()*100+"%";
-    p.style.background = cols[Math.floor(Math.random()*cols.length)];
-    p.style.width = (Math.random()*10+6)+"px";
-    p.style.height = (Math.random()*10+6)+"px";
-    p.style.borderRadius = Math.random()>.5?"50%":"2px";
-    p.style.animationDuration = (Math.random()*2+1.5)+"s";
-    p.style.animationDelay = (Math.random()*.8)+"s";
-    c.appendChild(p);
+sl.addEventListener("input", function () {
+  state.scoreTouched = true;
+  updScore(sl.value);
+  refreshSubmitGate();
+});
+
+// ----- Department pills -----
+var pillNodes = document.querySelectorAll(".pill");
+function selectDept(name, persist) {
+  state.department = name;
+  pillNodes.forEach(function (p) {
+    var match = p.getAttribute("data-dept") === name;
+    if (match) p.classList.add("is-selected");
+    else p.classList.remove("is-selected");
+  });
+  if (cdept) cdept.style.display = name ? "block" : "none";
+  if (persist && window.pywebview && window.pywebview.api && window.pywebview.api.save_department) {
+    try { window.pywebview.api.save_department(name); } catch (_) {}
   }
+  refreshSubmitGate();
 }
 
+pillNodes.forEach(function (p) {
+  p.addEventListener("click", function () {
+    selectDept(p.getAttribute("data-dept"), false);
+  });
+});
+
+cdept.addEventListener("click", function () {
+  state.department = null;
+  pillNodes.forEach(function (p) { p.classList.remove("is-selected"); });
+  cdept.style.display = "none";
+  // Tell launch.py to clear the saved department so next launch starts clean.
+  if (window.pywebview && window.pywebview.api && window.pywebview.api.clear_department) {
+    try { window.pywebview.api.clear_department(); } catch (_) {}
+  }
+  refreshSubmitGate();
+});
+
+// Hook for launch.py to pre-select a previously-saved department.
+window.homeyPulseSetDepartment = function (name) {
+  if (!name) return;
+  selectDept(name, false);
+};
+
+// ----- Success animation -----
 function showThanks() {
   fv.style.display = "none";
   tv.style.display = "flex";
-  confetti();
 }
 
-sb.addEventListener("click", function() {
+// ----- Submit -----
+sb.addEventListener("click", function () {
+  if (sb.disabled) return;
   if (!/^https:\/\/.+/i.test(WEBHOOK_URL)) {
     sb.disabled = true;
     sb.style.background = "#999999";
@@ -154,12 +460,34 @@ sb.addEventListener("click", function() {
   sb.disabled = true;
   sb.style.background = "#5A3BD4";
   sb.textContent = "Sending...";
-  var data = { score: Math.round(sl.value), feedback: fb.value.trim(), date: new Date().toISOString() };
+
+  var data = {
+    type: "happiness",
+    department: state.department,
+    score: Math.round(sl.value),
+    feedback: fb.value.trim(),
+    date: new Date().toISOString(),
+    timestamp: new Date().toISOString()
+  };
+
+  // Persist department for next launch (best-effort, fire-and-forget).
+  if (state.department && window.pywebview && window.pywebview.api && window.pywebview.api.save_department) {
+    try { window.pywebview.api.save_department(state.department); } catch (_) {}
+  }
+
   var done = false;
   function fin() { if (!done) { done = true; showThanks(); } }
   try {
-    fetch(WEBHOOK_URL, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(data), redirect: "follow" }).then(fin).catch(fin);
-  } catch(e) { fin(); }
+    fetch(WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify(data),
+      redirect: "follow"
+    }).then(fin).catch(fin);
+  } catch (e) { fin(); }
+
+  // Show the success state regardless after 3s — webhook latency must
+  // never block the user closing the popup.
   setTimeout(fin, 3000);
 });
 </script>
