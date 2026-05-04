@@ -475,8 +475,12 @@ private struct FeedbackEditor: NSViewRepresentable {
         let text: Binding<String>
         weak var textView: AccessiblePlaceholderTextView?
         weak var scrollView: NSScrollView?
-        var borderInactive = NSColor.gray.cgColor as Any as! NSColor
-        var borderActive = NSColor.gray.cgColor as Any as! NSColor
+        // Defaults are overwritten by makeNSView before the view is ever
+        // shown; just need any valid NSColor here. The previous default
+        // tried `NSColor.gray.cgColor as Any as! NSColor` which crashes at
+        // runtime because CGColor isn't an NSColor.
+        var borderInactive: NSColor = .gray
+        var borderActive: NSColor = .gray
 
         init(text: Binding<String>) { self.text = text }
 
