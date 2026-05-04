@@ -1,16 +1,25 @@
 import Foundation
 import Darwin
 
+/// Atomic single-instance enforcement using `flock(2)`. The previous
+/// implementation used a PID file with a mod-time-based "stale after 600s"
+/// fallback — which had a race window where two processes started inside
+/// the same poll interval could both pass the lock check before either one
+/// wrote its PID. That caused the duplicate-popup reports.
+///
+/// `flock(LOCK_EX | LOCK_NB)` is kernel-enforced and atomic: the second
+/// caller's flock() returns EWOULDBLOCK immediately. When the holding
+/// process exits (cleanly or via crash), the kernel releases the advisory
+/// lock automatically, so we never need a stale-detection heuristic.
 final class SingleInstanceLock {
     private let lockFileURL: URL
     private let fileManager = FileManager.default
     private(set) var lockAcquired = false
-    private let staleAfterSeconds: TimeInterval
+    private var fileDescriptor: Int32 = -1
 
-    init(baseDirectory: URL? = nil, staleAfterSeconds: TimeInterval = 600) {
+    init(baseDirectory: URL? = nil) {
         let base = baseDirectory ?? fileManager.homeDirectoryForCurrentUser.appendingPathComponent("homey-pulse", isDirectory: true)
         lockFileURL = base.appendingPathComponent(".pulse.lock")
-        self.staleAfterSeconds = staleAfterSeconds
     }
 
     func acquire() -> Bool {
@@ -19,62 +28,52 @@ final class SingleInstanceLock {
                 at: lockFileURL.deletingLastPathComponent(),
                 withIntermediateDirectories: true
             )
-            try? fileManager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: lockFileURL.deletingLastPathComponent().path)
+            try? fileManager.setAttributes(
+                [.posixPermissions: 0o700],
+                ofItemAtPath: lockFileURL.deletingLastPathComponent().path
+            )
         } catch {
             return false
         }
 
-        let currentPID = ProcessInfo.processInfo.processIdentifier
+        let path = lockFileURL.path
+        // O_CREAT|O_RDWR — create if missing, open for writing.
+        let fd = open(path, O_RDWR | O_CREAT, 0o600)
+        guard fd >= 0 else { return false }
 
-        do {
-            if fileManager.fileExists(atPath: lockFileURL.path) {
-                if isStaleLock() {
-                    try? fileManager.removeItem(at: lockFileURL)
-                } else {
-                let raw = try String(contentsOf: lockFileURL, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines)
-                if let existingPID = Int32(raw), existingPID > 0, isProcessAlive(existingPID) {
-                    return false
-                }
-                }
-            }
-        } catch {
-            // Treat unreadable lock as stale and continue overwrite.
-        }
-
-        do {
-            try "\(currentPID)\n".write(to: lockFileURL, atomically: true, encoding: .utf8)
-            try? fileManager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: lockFileURL.path)
-            lockAcquired = true
-            return true
-        } catch {
+        // LOCK_NB → don't block; return immediately if another process holds the lock.
+        if flock(fd, LOCK_EX | LOCK_NB) != 0 {
+            // Another instance has the lock. Don't pretend we have it.
+            close(fd)
             return false
         }
+
+        fileDescriptor = fd
+        lockAcquired = true
+
+        // Write our PID inside the locked file for diagnostic purposes only —
+        // the lock itself is held by flock, not by reading this PID.
+        let pidString = "\(ProcessInfo.processInfo.processIdentifier)\n"
+        if let data = pidString.data(using: .utf8) {
+            ftruncate(fd, 0)
+            data.withUnsafeBytes { _ = write(fd, $0.baseAddress, data.count) }
+        }
+
+        return true
     }
 
     func release() {
         guard lockAcquired else { return }
-
-        do {
-            if fileManager.fileExists(atPath: lockFileURL.path) {
-                try fileManager.removeItem(at: lockFileURL)
-            }
-        } catch {
-            // Intentionally swallow for safe teardown.
+        if fileDescriptor >= 0 {
+            // Releasing the fd implicitly releases the flock on macOS.
+            flock(fileDescriptor, LOCK_UN)
+            close(fileDescriptor)
+            fileDescriptor = -1
         }
+        // Best-effort cleanup of the on-disk file. If another instance picks
+        // up the lock between our LOCK_UN and unlink, that's fine — they
+        // hold the kernel lock regardless of whether the file exists.
+        try? fileManager.removeItem(at: lockFileURL)
         lockAcquired = false
-    }
-
-    private func isProcessAlive(_ pid: Int32) -> Bool {
-        if pid <= 0 { return false }
-        return kill(pid, 0) == 0
-    }
-
-    private func isStaleLock() -> Bool {
-        guard let attributes = try? fileManager.attributesOfItem(atPath: lockFileURL.path),
-              let modified = attributes[.modificationDate] as? Date
-        else {
-            return false
-        }
-        return Date().timeIntervalSince(modified) > staleAfterSeconds
     }
 }

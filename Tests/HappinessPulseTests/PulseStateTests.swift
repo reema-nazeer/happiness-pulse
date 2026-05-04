@@ -5,16 +5,22 @@ final class PulseStateTests: XCTestCase {
     func testShouldShowCombinations() {
         let weekdayMorning = makeDate(year: 2026, month: 4, day: 14, hour: 10, minute: 0)
         let saturday = makeDate(year: 2026, month: 4, day: 18, hour: 10, minute: 0)
-        let early = makeDate(year: 2026, month: 4, day: 14, hour: 8, minute: 59)
+        // Working hours are 7am–8pm, so 6:30am is outside.
+        let early = makeDate(year: 2026, month: 4, day: 14, hour: 6, minute: 30)
+        // 8pm is outside (interval is half-open: < 20:00).
+        let late = makeDate(year: 2026, month: 4, day: 14, hour: 20, minute: 30)
 
         let mock = MockFlagChecker()
-        let state = PulseState(flagManager: mock, calendar: Calendar.current)
+        var gregorian = Calendar(identifier: .gregorian)
+        gregorian.firstWeekday = 1
+        let state = PulseState(flagManager: mock, calendar: gregorian)
 
         mock.submittedToday = false
         XCTAssertTrue(state.shouldShow(lockIsAvailable: true, date: weekdayMorning))
         XCTAssertFalse(state.shouldShow(lockIsAvailable: false, date: weekdayMorning))
         XCTAssertFalse(state.shouldShow(lockIsAvailable: true, date: saturday))
         XCTAssertFalse(state.shouldShow(lockIsAvailable: true, date: early))
+        XCTAssertFalse(state.shouldShow(lockIsAvailable: true, date: late))
 
         mock.submittedToday = true
         XCTAssertFalse(state.shouldShow(lockIsAvailable: true, date: weekdayMorning))

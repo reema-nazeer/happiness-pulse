@@ -4,34 +4,88 @@
 <dict>
     <key>Label</key>
     <string>uk.co.homey.pulse</string>
+
     <key>ProgramArguments</key>
     <array>
         <string>$HOME/homey-pulse/HappinessPulse.app/Contents/MacOS/HappinessPulse</string>
     </array>
+
+    <!--
+      Weekday-only schedule. Each StartCalendarInterval entry fires once at
+      the given time; using only Weekday 1..5 (Mon..Fri in launchd's
+      numbering, where Sunday=0) means the OS itself never schedules a
+      launch on Sat/Sun. This is the primary defence against the "popup on
+      Saturday" bug; the Swift code's isWeekday() check is a belt-and-braces
+      backup in case anyone tampers with the plist.
+
+      Four times spread across the workday so a laptop that's asleep at the
+      first slot still gets a fair chance later. The app's own dedup-flag
+      (~/homey-pulse/flags/<date>) ensures only ONE popup per day regardless
+      of how many slots fire.
+    -->
+    <key>StartCalendarInterval</key>
+    <array>
+        <!-- Mon-Fri 09:00 -->
+        <dict><key>Weekday</key><integer>1</integer><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>
+        <dict><key>Weekday</key><integer>2</integer><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>
+        <dict><key>Weekday</key><integer>3</integer><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>
+        <dict><key>Weekday</key><integer>4</integer><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>
+        <dict><key>Weekday</key><integer>5</integer><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>
+        <!-- Mon-Fri 11:00 -->
+        <dict><key>Weekday</key><integer>1</integer><key>Hour</key><integer>11</integer><key>Minute</key><integer>0</integer></dict>
+        <dict><key>Weekday</key><integer>2</integer><key>Hour</key><integer>11</integer><key>Minute</key><integer>0</integer></dict>
+        <dict><key>Weekday</key><integer>3</integer><key>Hour</key><integer>11</integer><key>Minute</key><integer>0</integer></dict>
+        <dict><key>Weekday</key><integer>4</integer><key>Hour</key><integer>11</integer><key>Minute</key><integer>0</integer></dict>
+        <dict><key>Weekday</key><integer>5</integer><key>Hour</key><integer>11</integer><key>Minute</key><integer>0</integer></dict>
+        <!-- Mon-Fri 14:00 -->
+        <dict><key>Weekday</key><integer>1</integer><key>Hour</key><integer>14</integer><key>Minute</key><integer>0</integer></dict>
+        <dict><key>Weekday</key><integer>2</integer><key>Hour</key><integer>14</integer><key>Minute</key><integer>0</integer></dict>
+        <dict><key>Weekday</key><integer>3</integer><key>Hour</key><integer>14</integer><key>Minute</key><integer>0</integer></dict>
+        <dict><key>Weekday</key><integer>4</integer><key>Hour</key><integer>14</integer><key>Minute</key><integer>0</integer></dict>
+        <dict><key>Weekday</key><integer>5</integer><key>Hour</key><integer>14</integer><key>Minute</key><integer>0</integer></dict>
+        <!-- Mon-Fri 16:00 -->
+        <dict><key>Weekday</key><integer>1</integer><key>Hour</key><integer>16</integer><key>Minute</key><integer>0</integer></dict>
+        <dict><key>Weekday</key><integer>2</integer><key>Hour</key><integer>16</integer><key>Minute</key><integer>0</integer></dict>
+        <dict><key>Weekday</key><integer>3</integer><key>Hour</key><integer>16</integer><key>Minute</key><integer>0</integer></dict>
+        <dict><key>Weekday</key><integer>4</integer><key>Hour</key><integer>16</integer><key>Minute</key><integer>0</integer></dict>
+        <dict><key>Weekday</key><integer>5</integer><key>Hour</key><integer>16</integer><key>Minute</key><integer>0</integer></dict>
+    </array>
+
     <key>RunAtLoad</key>
     <false/>
+
     <key>KeepAlive</key>
     <false/>
-    <key>StartInterval</key>
-    <integer>300</integer>
+
     <key>ProcessType</key>
     <string>Background</string>
+
     <key>LowPriorityIO</key>
     <true/>
+
     <key>Nice</key>
     <integer>10</integer>
+
     <key>LimitLoadToSessionType</key>
     <array>
         <string>Aqua</string>
     </array>
+
     <key>EnvironmentVariables</key>
     <dict>
         <key>HOME</key>
         <string>$HOME</string>
     </dict>
+
+    <!--
+      Send launch agent stderr/stdout to a file we can read for "missed
+      popup" diagnosis. Was /dev/null before, which made all such reports
+      undebuggable.
+    -->
     <key>StandardOutPath</key>
-    <string>/dev/null</string>
+    <string>$HOME/homey-pulse/launch-agent.log</string>
+
     <key>StandardErrorPath</key>
-    <string>/dev/null</string>
+    <string>$HOME/homey-pulse/launch-agent.log</string>
 </dict>
 </plist>
