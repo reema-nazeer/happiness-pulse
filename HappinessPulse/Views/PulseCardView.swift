@@ -36,23 +36,19 @@ struct PulseCardView: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            VStack(spacing: 8) {
+            VStack(spacing: 10) {
                 // Storm Purple logo on the new light card background.
                 HomeyLogoView(fill: Color(red: 124 / 255, green: 87 / 255, blue: 252 / 255))
                     .frame(width: 120)
 
-                if let installedDepartment {
-                    Text("\(installedDepartment) Pulse")
-                        .font(.system(size: 24, weight: .semibold))
-                        .foregroundColor(Color(red: 4 / 255, green: 4 / 255, blue: 6 / 255))
-                    Text("How happy are you at Homey today?")
-                        .font(.system(size: 13, weight: .regular))
-                        .foregroundColor(Color(red: 0.42, green: 0.44, blue: 0.50))
-                } else {
-                    Text("How happy are you at Homey?")
-                        .font(.system(size: 24, weight: .semibold))
-                        .foregroundColor(Color(red: 4 / 255, green: 4 / 255, blue: 6 / 255))
-                }
+                // Single heading. The department doesn't need calling out — the
+                // person already knows which team they're on (the install was
+                // branch-specific to their dept) and showing "Operations Pulse"
+                // is the sort of thing that ages badly when the org reshuffles.
+                Text("How happy are you at Homey today?")
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundColor(Color(red: 4 / 255, green: 4 / 255, blue: 6 / 255))
+                    .multilineTextAlignment(.center)
             }
             .padding(.bottom, 4)
 
@@ -274,11 +270,16 @@ private struct SubDepartmentField: View {
                 .font(.system(size: 11, weight: .medium))
                 .foregroundColor(Color(red: 0.42, green: 0.44, blue: 0.50))
 
+            // Empty placeholder per the v3.1 brief — the "Team (optional)"
+            // label above is enough; an example placeholder ("e.g.
+            // Conveyancing…") was confusing some users into thinking the
+            // example was the answer.
             LightTextField(
                 text: $text,
-                placeholder: "e.g. Conveyancing, CX support, Mobile",
+                placeholder: "",
                 onFocusChange: { isFocused = $0 }
             )
+            .padding(.horizontal, 14)  // inset the text inside the rounded box
             .frame(height: 44)
             .background(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -492,7 +493,13 @@ private struct FeedbackEditor: NSViewRepresentable {
     func makeNSView(context: Context) -> NSScrollView {
         let scroll = NSScrollView()
         scroll.borderType = .noBorder
-        scroll.hasVerticalScroller = true
+        // Hide the vertical scroller. Reema's macOS is set to "Always show
+        // scroll bars", which made the dark legacy scroller bleed into the
+        // light card as a hard black strip on the right edge. The feedback
+        // box is fixed at 86px and rarely overflows; if it does, trackpad
+        // scrolling still works inside the NSTextView.
+        scroll.hasVerticalScroller = false
+        scroll.scrollerStyle = .overlay
         scroll.drawsBackground = true
         scroll.backgroundColor = lightBg
         scroll.wantsLayer = true
