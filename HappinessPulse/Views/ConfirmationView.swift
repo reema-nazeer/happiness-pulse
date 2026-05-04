@@ -1,49 +1,96 @@
 import SwiftUI
-import SpriteKit
 
+/// Post-submit success card. The previous version used 170 SpriteKit confetti
+/// nodes which caused a visible frame drop on older laptops. This version is
+/// CSS-style animation only:
+///
+///   1. Storm Purple ring scales in (spring, ~350ms)
+///   2. Strike Yellow checkmark draws (300ms, starts at 200ms)
+///   3. "Thanks for sharing" + message fade in (200ms each, starts at 400/500ms)
+///   4. Soft brand-coloured halo pulses behind the ring (subtle, no overdraw)
+///
+/// Total animation completes well under 1 second.
 struct ConfirmationView: View {
     let message: String
-    @State private var drawCheck = false
-    @State private var showConfetti = true
+
+    @State private var ringScale: CGFloat = 0
+    @State private var ringHaloOpacity: Double = 0
+    @State private var drawCheck: CGFloat = 0
+    @State private var titleOpacity: Double = 0
+    @State private var messageOpacity: Double = 0
+
+    private let purple = Color(red: 124 / 255, green: 87 / 255, blue: 252 / 255)
+    private let yellow = Color(red: 219 / 255, green: 255 / 255, blue: 0)
+    private let black = Color(red: 4 / 255, green: 4 / 255, blue: 6 / 255)
 
     var body: some View {
-        ZStack {
-            if showConfetti {
-                ConfettiSpriteView()
-                    .ignoresSafeArea()
-                    .transition(.opacity)
-            }
+        VStack(spacing: 18) {
+            ZStack {
+                // Soft halo behind the ring
+                Circle()
+                    .fill(purple.opacity(0.25))
+                    .frame(width: 110, height: 110)
+                    .blur(radius: 18)
+                    .opacity(ringHaloOpacity)
 
-            VStack(spacing: 14) {
+                // The Storm Purple ring
+                Circle()
+                    .fill(purple)
+                    .frame(width: 80, height: 80)
+                    .shadow(color: purple.opacity(0.45), radius: 14, x: 0, y: 6)
+                    .scaleEffect(ringScale)
+
+                // Strike Yellow checkmark, drawn with stroke
                 CheckmarkShape()
-                    .trim(from: 0, to: drawCheck ? 1 : 0)
-                    .stroke(Color(red: 219 / 255, green: 255 / 255, blue: 0), style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
-                    .frame(width: 66, height: 66)
-                    .animation(.easeOut(duration: 0.5), value: drawCheck)
+                    .trim(from: 0, to: drawCheck)
+                    .stroke(yellow, style: StrokeStyle(lineWidth: 4.5, lineCap: .round, lineJoin: .round))
+                    .frame(width: 38, height: 38)
+                    .scaleEffect(ringScale)
+            }
+            .frame(width: 110, height: 110)
 
-                Text("Thank you!")
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundColor(Color(red: 219 / 255, green: 255 / 255, blue: 0))
+            VStack(spacing: 6) {
+                Text("Thanks for sharing")
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundColor(.white)
+                    .opacity(titleOpacity)
 
                 Text(message)
                     .font(.system(size: 14))
-                    .foregroundColor(Color(red: 0.62, green: 0.62, blue: 0.62))
+                    .foregroundColor(Color(red: 0.65, green: 0.65, blue: 0.7))
                     .multilineTextAlignment(.center)
+                    .opacity(messageOpacity)
             }
-            .padding(30)
-            .frame(width: 460)
-            .background(
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(Color(red: 4 / 255, green: 4 / 255, blue: 6 / 255).opacity(0.85))
-            )
         }
-        .onAppear {
-            drawCheck = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
-                withAnimation(.easeOut(duration: 0.3)) {
-                    showConfetti = false
-                }
-            }
+        .padding(.horizontal, 36)
+        .padding(.vertical, 30)
+        .frame(width: 460)
+        .background(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(black.opacity(0.92))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(purple.opacity(0.35), lineWidth: 1)
+        )
+        .onAppear { runAnimation() }
+    }
+
+    private func runAnimation() {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+            ringScale = 1
+        }
+        withAnimation(.easeOut(duration: 0.6)) {
+            ringHaloOpacity = 1
+        }
+        withAnimation(.easeOut(duration: 0.3).delay(0.2)) {
+            drawCheck = 1
+        }
+        withAnimation(.easeOut(duration: 0.2).delay(0.4)) {
+            titleOpacity = 1
+        }
+        withAnimation(.easeOut(duration: 0.2).delay(0.5)) {
+            messageOpacity = 1
         }
     }
 }
@@ -51,84 +98,9 @@ struct ConfirmationView: View {
 private struct CheckmarkShape: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        path.move(to: CGPoint(x: rect.minX + rect.width * 0.12, y: rect.midY + rect.height * 0.1))
-        path.addLine(to: CGPoint(x: rect.midX - rect.width * 0.06, y: rect.maxY - rect.height * 0.12))
-        path.addLine(to: CGPoint(x: rect.maxX - rect.width * 0.08, y: rect.minY + rect.height * 0.18))
+        path.move(to: CGPoint(x: rect.minX + rect.width * 0.16, y: rect.midY + rect.height * 0.06))
+        path.addLine(to: CGPoint(x: rect.midX - rect.width * 0.04, y: rect.maxY - rect.height * 0.16))
+        path.addLine(to: CGPoint(x: rect.maxX - rect.width * 0.10, y: rect.minY + rect.height * 0.20))
         return path
-    }
-}
-
-private struct ConfettiSpriteView: NSViewRepresentable {
-    func makeNSView(context: Context) -> SKView {
-        let view = SKView(frame: .zero)
-        view.allowsTransparency = true
-        let scene = ConfettiScene(size: NSScreen.main?.frame.size ?? CGSize(width: 1280, height: 720))
-        scene.scaleMode = .resizeFill
-        view.presentScene(scene)
-        return view
-    }
-
-    func updateNSView(_ nsView: SKView, context: Context) {}
-}
-
-private final class ConfettiScene: SKScene {
-    override init(size: CGSize) {
-        super.init(size: size)
-        backgroundColor = .clear
-    }
-
-    required init?(coder aDecoder: NSCoder) {
-        super.init(coder: aDecoder)
-    }
-
-    override func didMove(to view: SKView) {
-        runBursts()
-    }
-
-    private func runBursts() {
-        [0.0, 0.3, 0.6].forEach { delay in
-            run(.sequence([.wait(forDuration: delay), .run { [weak self] in
-                self?.emitBurst()
-            }]))
-        }
-    }
-
-    private func emitBurst() {
-        let colors: [NSColor] = [
-            NSColor(calibratedRed: 219 / 255, green: 255 / 255, blue: 0, alpha: 1),
-            NSColor(calibratedRed: 124 / 255, green: 87 / 255, blue: 252 / 255, alpha: 1),
-            NSColor(calibratedRed: 1, green: 0.27, blue: 0.27, alpha: 1),
-            NSColor(calibratedRed: 0, green: 0.8, blue: 0.4, alpha: 1),
-            NSColor(calibratedRed: 1, green: 0.55, blue: 0, alpha: 1),
-            NSColor.white
-        ]
-
-        for i in 0..<170 {
-            let shapeType = i % 3
-            let node: SKShapeNode
-            let sizeValue = CGFloat(Int.random(in: 4...12))
-            if shapeType == 0 {
-                node = SKShapeNode(circleOfRadius: sizeValue / 2)
-            } else if shapeType == 1 {
-                node = SKShapeNode(rectOf: CGSize(width: sizeValue, height: sizeValue))
-            } else {
-                node = SKShapeNode(rectOf: CGSize(width: max(2, sizeValue / 3), height: sizeValue + 6))
-            }
-            node.fillColor = colors.randomElement() ?? .white
-            node.strokeColor = .clear
-            node.alpha = CGFloat.random(in: 0.7...1)
-            node.position = CGPoint(x: CGFloat.random(in: 0...size.width), y: size.height + 20)
-            addChild(node)
-
-            let drift = CGFloat.random(in: -120...120)
-            let destination = CGPoint(x: node.position.x + drift, y: -40)
-            let duration = TimeInterval.random(in: 1.8...2.8)
-            let move = SKAction.move(to: destination, duration: duration)
-            move.timingMode = .easeIn
-            let rotate = SKAction.rotate(byAngle: CGFloat.random(in: -3...3), duration: duration)
-            let fade = SKAction.fadeOut(withDuration: 0.25)
-            node.run(.group([move, rotate]))
-            node.run(.sequence([.wait(forDuration: duration - 0.25), fade, .removeFromParent()]))
-        }
     }
 }
