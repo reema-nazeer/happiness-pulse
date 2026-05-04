@@ -5,6 +5,8 @@ final class SubmissionService {
         let type: String
         let score: Int
         let feedback: String
+        let department: String
+        let sub_department: String?
         let timestamp: String
         let version: String
         let os_version: String
@@ -45,7 +47,13 @@ final class SubmissionService {
         self.webhookSecret = webhookSecret
     }
 
-    func submitPulse(score: Int, feedback: String, completion: @escaping (Result<Void, Error>) -> Void) {
+    func submitPulse(
+        score: Int,
+        feedback: String,
+        department: String,
+        subDepartment: String?,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
         guard let webhookURL else {
             completion(.failure(NSError(domain: "SubmissionService", code: -1)))
             return
@@ -55,8 +63,10 @@ final class SubmissionService {
             type: "happiness",
             score: score,
             feedback: feedback,
+            department: department,
+            sub_department: subDepartment,
             timestamp: ISO8601DateFormatter().string(from: nowProvider()),
-            version: "2.0.0",
+            version: "2.1.0",
             os_version: ProcessInfo.processInfo.shortOSVersion,
             source: "macos-native-v2",
             secret: webhookSecret

@@ -19,7 +19,12 @@ final class SubmissionServiceTests: XCTestCase {
         )
 
         let failureExp = DispatchSemaphore(value: 0)
-        service.submitPulse(score: 8, feedback: "offline") { result in
+        service.submitPulse(
+            score: 8,
+            feedback: "offline",
+            department: "Operations",
+            subDepartment: "Conveyancing"
+        ) { result in
             if case .failure = result { failureExp.signal() }
         }
         wait(for: [failureExp], timeout: 1)
@@ -47,7 +52,12 @@ final class SubmissionServiceTests: XCTestCase {
         )
 
         let exp = DispatchSemaphore(value: 0)
-        service.submitPulse(score: 7, feedback: "") { result in
+        service.submitPulse(
+            score: 7,
+            feedback: "",
+            department: "Service",
+            subDepartment: nil
+        ) { result in
             if case .success = result { exp.signal() }
         }
         wait(for: [exp], timeout: 1)

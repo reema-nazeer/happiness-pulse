@@ -2,13 +2,18 @@ import AppKit
 import SwiftUI
 
 struct PulseCardView: View {
-    let onSubmit: (Int, String, @escaping () -> Void) -> Void
+    /// Submit callback — score, feedback, department, optional sub-department, completion.
+    let onSubmit: (Int, String, String, String?, @escaping () -> Void) -> Void
 
     @State private var selectedScore: Int?
     @State private var sliderValue: Double = 5
     @State private var feedback: String = ""
+    @State private var department: String?
+    @State private var subDepartment: String = ""
     @State private var loading = false
     @State private var glowRotation = 0.0
+
+    private let departments = ["Operations", "Revenue", "Service", "Technology"]
 
     var body: some View {
         VStack(spacing: 14) {
@@ -19,14 +24,23 @@ struct PulseCardView: View {
                 Text("How happy are you at Homey?")
                     .font(.system(size: 24, weight: .semibold))
                     .foregroundColor(.white)
-                    .tracking(0.5)
             }
             .padding(.bottom, 4)
+
+            DepartmentPicker(
+                departments: departments,
+                selected: $department
+            )
+
+            if department != nil {
+                SubDepartmentField(text: $subDepartment)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
 
             if selectedScore == nil {
                 Text("Slide to rate")
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(Color(red: 0.4, green: 0.4, blue: 0.4))
+                    .foregroundColor(Color(red: 0.55, green: 0.55, blue: 0.6))
             }
 
             VStack(spacing: 4) {
@@ -60,23 +74,24 @@ struct PulseCardView: View {
                     Text("Submit")
                 }
             }
-            .buttonStyle(PrimaryShimmerButtonStyle(enabled: selectedScore != nil))
-            .disabled(selectedScore == nil || loading)
+            .buttonStyle(PrimaryShimmerButtonStyle(enabled: canSubmit))
+            .disabled(!canSubmit || loading)
             .keyboardShortcut(.defaultAction)
             .accessibilityLabel("Submit happiness pulse")
-            .animation(.easeInOut(duration: 0.25), value: selectedScore != nil)
+            .animation(.easeInOut(duration: 0.25), value: canSubmit)
 
             (
                 Text("100% Anonymous")
                     .fontWeight(.bold)
                     .foregroundColor(Color(red: 219 / 255, green: 255 / 255, blue: 0))
                 + Text(" - your name is never recorded")
-                    .foregroundColor(Color(red: 0.45, green: 0.45, blue: 0.45))
+                    .foregroundColor(Color(red: 0.55, green: 0.55, blue: 0.6))
             )
             .font(.system(size: 11))
         }
         .padding(24)
         .frame(width: 500)
+        .animation(.easeInOut(duration: 0.25), value: department)
         .background(
             ZStack {
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
@@ -114,10 +129,15 @@ struct PulseCardView: View {
         }
     }
 
+    private var canSubmit: Bool {
+        selectedScore != nil && department != nil
+    }
+
     private func submit() {
-        guard let selectedScore, !loading else { return }
+        guard let selectedScore, let department, !loading else { return }
         loading = true
-        onSubmit(selectedScore, feedback) {
+        let trimmedSub = subDepartment.trimmingCharacters(in: .whitespacesAndNewlines)
+        onSubmit(selectedScore, feedback, department, trimmedSub.isEmpty ? nil : trimmedSub) {
             loading = false
         }
     }
@@ -152,6 +172,129 @@ struct PulseCardView: View {
         return glowForButton(score)
     }
 }
+
+// MARK: - Department picker
+
+private struct DepartmentPicker: View {
+    let departments: [String]
+    @Binding var selected: String?
+
+    var body: some View {
+        let columns = [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)]
+        LazyVGrid(columns: columns, spacing: 8) {
+            ForEach(departments, id: \.self) { dept in
+                let isSelected = selected == dept
+                Button {
+                    selected = dept
+                    NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
+                } label: {
+                    Text(dept)
+                        .font(.system(size: 13, weight: .semibold))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 36)
+                        .foregroundColor(isSelected ? .white : Color(red: 124 / 255, green: 87 / 255, blue: 252 / 255))
+                        .background(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(isSelected
+                                      ? Color(red: 124 / 255, green: 87 / 255, blue: 252 / 255)
+                                      : Color.clear)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(Color(red: 124 / 255, green: 87 / 255, blue: 252 / 255), lineWidth: 1.5)
+                        )
+                        .animation(.easeInOut(duration: 0.15), value: isSelected)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(dept) department")
+                .accessibilityAddTraits(isSelected ? .isSelected : [])
+            }
+        }
+    }
+}
+
+// MARK: - Optional sub-department free-text input
+
+private struct SubDepartmentField: View {
+    @Binding var text: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text("Team")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(Color(red: 0.55, green: 0.55, blue: 0.6))
+                .textCase(.uppercase)
+                .frame(width: 44, alignment: .leading)
+
+            DarkTextField(text: $text, placeholder: "Sub-department (optional)")
+                .frame(height: 32)
+        }
+    }
+}
+
+/// NSTextField-backed input. Avoids SwiftUI TextField's macOS rendering quirks
+/// (notably the white-on-white typing bug we hit with TextEditor) and gives us
+/// full control over colours.
+private struct DarkTextField: NSViewRepresentable {
+    @Binding var text: String
+    let placeholder: String
+
+    func makeCoordinator() -> Coordinator { Coordinator(text: $text) }
+
+    func makeNSView(context: Context) -> NSTextField {
+        let field = NSTextField()
+        field.delegate = context.coordinator
+        field.isEditable = true
+        field.isSelectable = true
+        field.isBezeled = false
+        field.isBordered = false
+        field.drawsBackground = true
+        field.backgroundColor = NSColor(calibratedRed: 0.10, green: 0.10, blue: 0.12, alpha: 1.0)
+        field.textColor = .white
+        field.font = NSFont.systemFont(ofSize: 13)
+        field.focusRingType = .none
+        field.placeholderAttributedString = NSAttributedString(
+            string: placeholder,
+            attributes: [
+                .foregroundColor: NSColor(calibratedRed: 0.45, green: 0.45, blue: 0.48, alpha: 1.0),
+                .font: NSFont.systemFont(ofSize: 13).italic()
+            ]
+        )
+        field.cell?.usesSingleLineMode = true
+        field.cell?.wraps = false
+        field.cell?.isScrollable = true
+        field.cell?.lineBreakMode = .byClipping
+        // Inset the text a few pixels for breathing room.
+        if let cell = field.cell as? NSTextFieldCell {
+            cell.title = text
+        }
+        return field
+    }
+
+    func updateNSView(_ nsView: NSTextField, context: Context) {
+        if nsView.stringValue != text {
+            nsView.stringValue = text
+        }
+    }
+
+    final class Coordinator: NSObject, NSTextFieldDelegate {
+        let text: Binding<String>
+        init(text: Binding<String>) { self.text = text }
+        func controlTextDidChange(_ obj: Notification) {
+            guard let field = obj.object as? NSTextField else { return }
+            text.wrappedValue = field.stringValue
+        }
+    }
+}
+
+private extension NSFont {
+    func italic() -> NSFont {
+        let descriptor = fontDescriptor.withSymbolicTraits(.italic)
+        return NSFont(descriptor: descriptor, size: pointSize) ?? self
+    }
+}
+
+// MARK: - Slider
 
 private struct RatingSliderView: View {
     @Binding var value: Double
@@ -207,7 +350,7 @@ private struct RatingSliderView: View {
                     Text("10")
                 }
                 .font(.system(size: 12, weight: .medium))
-                .foregroundColor(Color(red: 0.4, green: 0.4, blue: 0.4))
+                .foregroundColor(Color(red: 0.55, green: 0.55, blue: 0.6))
             }
         }
     }
@@ -225,35 +368,130 @@ private struct RatingSliderView: View {
     }
 }
 
-private struct FeedbackEditor: View {
-    @Binding var text: String
-    @State private var isFocused = false
+// MARK: - Feedback editor (typing-not-visible bug fixed here)
 
-    var body: some View {
-        ZStack(alignment: .topLeading) {
-            TextEditor(text: $text)
-                .font(.system(size: 14))
-                .padding(8)
-                .scrollContentBackground(.hidden)
-                .background(Color(red: 0.04, green: 0.04, blue: 0.04))
-                .foregroundColor(.white)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(isFocused ? Color(red: 124 / 255, green: 87 / 255, blue: 252 / 255).opacity(0.9) : Color(red: 0.13, green: 0.13, blue: 0.13), lineWidth: 1.2)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .onTapGesture { isFocused = true }
-            if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                Text("Anything you'd like to share? (optional)")
-                    .font(.system(size: 14).italic())
-                    .foregroundColor(Color(red: 0.33, green: 0.33, blue: 0.33))
-                    .padding(.top, 14)
-                    .padding(.leading, 14)
-            }
+private struct FeedbackEditor: NSViewRepresentable {
+    @Binding var text: String
+
+    private let darkBg = NSColor(calibratedRed: 0.10, green: 0.10, blue: 0.12, alpha: 1.0)
+    private let borderInactive = NSColor(calibratedRed: 0.18, green: 0.18, blue: 0.22, alpha: 1.0)
+    private let borderActive = NSColor(calibratedRed: 124 / 255, green: 87 / 255, blue: 252 / 255, alpha: 0.9)
+
+    func makeCoordinator() -> Coordinator { Coordinator(text: $text) }
+
+    func makeNSView(context: Context) -> NSScrollView {
+        let scroll = NSScrollView()
+        scroll.borderType = .noBorder
+        scroll.hasVerticalScroller = true
+        scroll.drawsBackground = true
+        scroll.backgroundColor = darkBg
+        scroll.wantsLayer = true
+        scroll.layer?.cornerRadius = 12
+        scroll.layer?.masksToBounds = true
+        scroll.layer?.borderWidth = 1.2
+        scroll.layer?.borderColor = borderInactive.cgColor
+
+        let textView = AccessiblePlaceholderTextView()
+        textView.isEditable = true
+        textView.isSelectable = true
+        textView.isRichText = false
+        textView.allowsUndo = true
+        // The fix: explicit dark background AND white text on an NSTextView we
+        // own outright. SwiftUI's TextEditor draws its own white scroll
+        // content background ON TOP of any .background(...) modifier, which
+        // produced the white-on-white invisible-typing bug. Wrapping
+        // NSTextView keeps colours under our control on every macOS version.
+        textView.drawsBackground = true
+        textView.backgroundColor = darkBg
+        textView.textColor = .white
+        textView.insertionPointColor = NSColor(calibratedRed: 124 / 255, green: 87 / 255, blue: 252 / 255, alpha: 1.0)
+        textView.font = NSFont.systemFont(ofSize: 14)
+        textView.textContainerInset = NSSize(width: 8, height: 10)
+        textView.delegate = context.coordinator
+        textView.placeholderText = "Anything you'd like to share? (optional)"
+        textView.placeholderColor = NSColor(calibratedRed: 0.45, green: 0.45, blue: 0.48, alpha: 1.0)
+        textView.placeholderFont = NSFont.systemFont(ofSize: 14).italic()
+        textView.string = text
+        textView.autoresizingMask = [.width]
+        textView.isVerticallyResizable = true
+        textView.isHorizontallyResizable = false
+        textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        textView.textContainer?.widthTracksTextView = true
+        textView.textContainer?.containerSize = NSSize(
+            width: scroll.contentSize.width,
+            height: CGFloat.greatestFiniteMagnitude
+        )
+
+        context.coordinator.textView = textView
+        context.coordinator.scrollView = scroll
+        context.coordinator.borderInactive = borderInactive
+        context.coordinator.borderActive = borderActive
+
+        scroll.documentView = textView
+        return scroll
+    }
+
+    func updateNSView(_ nsView: NSScrollView, context: Context) {
+        if let textView = nsView.documentView as? AccessiblePlaceholderTextView,
+           textView.string != text {
+            textView.string = text
         }
-        .accessibilityLabel("Optional feedback")
+    }
+
+    final class Coordinator: NSObject, NSTextViewDelegate {
+        let text: Binding<String>
+        weak var textView: AccessiblePlaceholderTextView?
+        weak var scrollView: NSScrollView?
+        var borderInactive = NSColor.gray.cgColor as Any as! NSColor
+        var borderActive = NSColor.gray.cgColor as Any as! NSColor
+
+        init(text: Binding<String>) { self.text = text }
+
+        func textDidChange(_ notification: Notification) {
+            guard let tv = notification.object as? NSTextView else { return }
+            text.wrappedValue = tv.string
+        }
+
+        func textViewDidChangeSelection(_ notification: Notification) {
+            updateBorder()
+        }
+
+        func textDidBeginEditing(_ notification: Notification) {
+            updateBorder()
+        }
+
+        func textDidEndEditing(_ notification: Notification) {
+            updateBorder()
+        }
+
+        private func updateBorder() {
+            guard let scrollView else { return }
+            let isFocused = textView?.window?.firstResponder == textView
+            scrollView.layer?.borderColor = isFocused ? borderActive.cgColor : borderInactive.cgColor
+        }
     }
 }
+
+/// NSTextView subclass that draws a placeholder string when empty.
+private final class AccessiblePlaceholderTextView: NSTextView {
+    var placeholderText: String = ""
+    var placeholderColor: NSColor = .gray
+    var placeholderFont: NSFont = NSFont.systemFont(ofSize: 14)
+
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+        guard string.isEmpty, !placeholderText.isEmpty else { return }
+        let attrs: [NSAttributedString.Key: Any] = [
+            .foregroundColor: placeholderColor,
+            .font: placeholderFont
+        ]
+        let inset = textContainerInset
+        let origin = NSPoint(x: inset.width + 4, y: inset.height)
+        placeholderText.draw(at: origin, withAttributes: attrs)
+    }
+}
+
+// MARK: - Submit button bits (unchanged)
 
 private struct BouncingDotsView: View {
     @State private var animate = false

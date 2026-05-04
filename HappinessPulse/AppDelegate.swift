@@ -60,8 +60,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func showPulseCard() {
         showingUI = true
-        let view = PulseCardView { [weak self] score, feedback, done in
-            self?.submit(score: score, feedback: feedback, done: done)
+        let view = PulseCardView { [weak self] score, feedback, department, subDepartment, done in
+            self?.submit(
+                score: score,
+                feedback: feedback,
+                department: department,
+                subDepartment: subDepartment,
+                done: done
+            )
         }
         overlayController.present(content: AnyView(view))
     }
@@ -77,10 +83,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func submit(score: Int, feedback: String, done: @escaping () -> Void) {
+    private func submit(
+        score: Int,
+        feedback: String,
+        department: String,
+        subDepartment: String?,
+        done: @escaping () -> Void
+    ) {
         do {
             try pulseState.writeFlag()
-            logger.info("Flag written for today's pulse submission")
+            logger.info("Flag written for today's pulse submission (dept=\(department))")
         } catch {
             logger.error("Failed to write submission flag")
         }
@@ -88,7 +100,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         done()
         showConfirmationAndExit()
 
-        submissionService.submitPulse(score: score, feedback: feedback) { [weak self] result in
+        submissionService.submitPulse(
+            score: score,
+            feedback: feedback,
+            department: department,
+            subDepartment: subDepartment
+        ) { [weak self] result in
             switch result {
             case .success:
                 self?.logger.info("Webhook submission completed")
