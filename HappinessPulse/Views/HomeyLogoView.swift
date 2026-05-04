@@ -2,10 +2,14 @@ import SwiftUI
 
 struct HomeyLogoView: View {
     var width: CGFloat = 120
+    /// Logo fill colour. Defaults to white so existing dark-theme callers
+    /// (e.g. the success/confirmation card) don't need to change. The
+    /// light-theme popup passes Storm Purple.
+    var fill: Color = .white
 
     var body: some View {
         HomeyLogoShape()
-            .fill(Color.white)
+            .fill(fill)
             .frame(width: width, height: width * (1027.0 / 2500.0))
             .drawingGroup()
         .accessibilityLabel("Homey")

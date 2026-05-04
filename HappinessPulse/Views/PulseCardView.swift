@@ -35,23 +35,23 @@ struct PulseCardView: View {
     }
 
     var body: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 16) {
             VStack(spacing: 8) {
-                HomeyLogoView()
+                // Storm Purple logo on the new light card background.
+                HomeyLogoView(fill: Color(red: 124 / 255, green: 87 / 255, blue: 252 / 255))
                     .frame(width: 120)
 
                 if let installedDepartment {
-                    // v3: dept baked into the install — show as a header.
                     Text("\(installedDepartment) Pulse")
                         .font(.system(size: 24, weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundColor(Color(red: 4 / 255, green: 4 / 255, blue: 6 / 255))
                     Text("How happy are you at Homey today?")
                         .font(.system(size: 13, weight: .regular))
-                        .foregroundColor(Color(red: 0.65, green: 0.65, blue: 0.7))
+                        .foregroundColor(Color(red: 0.42, green: 0.44, blue: 0.50))
                 } else {
                     Text("How happy are you at Homey?")
                         .font(.system(size: 24, weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundColor(Color(red: 4 / 255, green: 4 / 255, blue: 6 / 255))
                 }
             }
             .padding(.bottom, 4)
@@ -73,7 +73,7 @@ struct PulseCardView: View {
             if selectedScore == nil {
                 Text("Slide to rate")
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(Color(red: 0.55, green: 0.55, blue: 0.6))
+                    .foregroundColor(Color(red: 0.50, green: 0.52, blue: 0.58))
             }
 
             VStack(spacing: 4) {
@@ -116,43 +116,55 @@ struct PulseCardView: View {
             (
                 Text("100% Anonymous")
                     .fontWeight(.bold)
-                    .foregroundColor(Color(red: 219 / 255, green: 255 / 255, blue: 0))
-                + Text(" - your name is never recorded")
-                    .foregroundColor(Color(red: 0.55, green: 0.55, blue: 0.6))
+                    .foregroundColor(Color(red: 124 / 255, green: 87 / 255, blue: 252 / 255))
+                + Text(" — your name is never recorded")
+                    .foregroundColor(Color(red: 0.50, green: 0.52, blue: 0.58))
             )
             .font(.system(size: 11))
         }
-        .padding(24)
+        .padding(28)
         .frame(width: 500)
         .animation(.easeInOut(duration: 0.25), value: department)
         .background(
+            // Bright white card with a subtle Storm Purple glow on the
+            // top-right and Strike Yellow whisper on the bottom-left.
             ZStack {
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(Color(red: 4 / 255, green: 4 / 255, blue: 6 / 255).opacity(0.95))
+                    .fill(Color.white)
                 RadialGradient(
                     gradient: Gradient(colors: [
-                        Color(red: 124 / 255, green: 87 / 255, blue: 252 / 255).opacity(0.2),
+                        Color(red: 124 / 255, green: 87 / 255, blue: 252 / 255).opacity(0.10),
                         .clear
                     ]),
                     center: .topTrailing,
                     startRadius: 5,
-                    endRadius: 220
+                    endRadius: 240
+                )
+                RadialGradient(
+                    gradient: Gradient(colors: [
+                        Color(red: 219 / 255, green: 255 / 255, blue: 0).opacity(0.08),
+                        .clear
+                    ]),
+                    center: .bottomLeading,
+                    startRadius: 5,
+                    endRadius: 240
                 )
             }
         )
+        .shadow(color: Color(red: 124 / 255, green: 87 / 255, blue: 252 / 255).opacity(0.18), radius: 30, x: 0, y: 10)
         .overlay(
             RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .stroke(
                     AngularGradient(
                         gradient: Gradient(colors: [
-                            Color(red: 124 / 255, green: 87 / 255, blue: 252 / 255),
-                            Color(red: 219 / 255, green: 255 / 255, blue: 0),
-                            Color(red: 124 / 255, green: 87 / 255, blue: 252 / 255)
+                            Color(red: 124 / 255, green: 87 / 255, blue: 252 / 255).opacity(0.55),
+                            Color(red: 219 / 255, green: 255 / 255, blue: 0).opacity(0.55),
+                            Color(red: 124 / 255, green: 87 / 255, blue: 252 / 255).opacity(0.55)
                         ]),
                         center: .center,
                         angle: .degrees(glowRotation)
                     ),
-                    lineWidth: 2
+                    lineWidth: 1.5
                 )
         )
         .onAppear {
@@ -246,61 +258,84 @@ private struct DepartmentPicker: View {
     }
 }
 
-// MARK: - Optional sub-department free-text input
+// MARK: - Optional sub-team free-text input
+//
+// Styled to match the Homey platform's filter inputs: small uppercase
+// label above a tall, light, rounded input. White background, light
+// hairline border, Storm Purple focus ring and caret.
 
 private struct SubDepartmentField: View {
     @Binding var text: String
+    @State private var isFocused = false
 
     var body: some View {
-        HStack(spacing: 8) {
-            Text("Team")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(Color(red: 0.55, green: 0.55, blue: 0.6))
-                .textCase(.uppercase)
-                .frame(width: 44, alignment: .leading)
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Team (optional)")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(Color(red: 0.42, green: 0.44, blue: 0.50))
 
-            DarkTextField(text: $text, placeholder: "Sub-department (optional)")
-                .frame(height: 32)
+            LightTextField(
+                text: $text,
+                placeholder: "e.g. Conveyancing, CX support, Mobile",
+                onFocusChange: { isFocused = $0 }
+            )
+            .frame(height: 44)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.white)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(
+                        isFocused
+                            ? Color(red: 124 / 255, green: 87 / 255, blue: 252 / 255).opacity(0.7)
+                            : Color(red: 0.88, green: 0.88, blue: 0.92),
+                        lineWidth: 1.2
+                    )
+            )
+            .animation(.easeInOut(duration: 0.15), value: isFocused)
         }
     }
 }
 
-/// NSTextField-backed input. Avoids SwiftUI TextField's macOS rendering quirks
-/// (notably the white-on-white typing bug we hit with TextEditor) and gives us
-/// full control over colours.
-private struct DarkTextField: NSViewRepresentable {
+/// NSTextField-backed input. SwiftUI's TextField on macOS has rendering
+/// quirks (the same family of bugs as TextEditor's white-on-white) so we
+/// drive the underlying NSTextField directly. Light theme: white background,
+/// dark text, Storm Purple caret.
+private struct LightTextField: NSViewRepresentable {
     @Binding var text: String
     let placeholder: String
+    let onFocusChange: (Bool) -> Void
 
-    func makeCoordinator() -> Coordinator { Coordinator(text: $text) }
+    func makeCoordinator() -> Coordinator {
+        Coordinator(text: $text, onFocusChange: onFocusChange)
+    }
 
     func makeNSView(context: Context) -> NSTextField {
-        let field = NSTextField()
+        let field = FocusReportingTextField()
         field.delegate = context.coordinator
+        field.focusReporter = context.coordinator
         field.isEditable = true
         field.isSelectable = true
         field.isBezeled = false
         field.isBordered = false
-        field.drawsBackground = true
-        field.backgroundColor = NSColor(calibratedRed: 0.10, green: 0.10, blue: 0.12, alpha: 1.0)
-        field.textColor = .white
-        field.font = NSFont.systemFont(ofSize: 13)
+        // Background is drawn by the SwiftUI overlay so the field itself
+        // stays transparent — this lets the rounded corners line up.
+        field.drawsBackground = false
+        field.textColor = NSColor(calibratedRed: 4 / 255, green: 4 / 255, blue: 6 / 255, alpha: 1.0)
+        field.font = NSFont.systemFont(ofSize: 14)
         field.focusRingType = .none
         field.placeholderAttributedString = NSAttributedString(
             string: placeholder,
             attributes: [
-                .foregroundColor: NSColor(calibratedRed: 0.45, green: 0.45, blue: 0.48, alpha: 1.0),
-                .font: NSFont.systemFont(ofSize: 13).italic()
+                .foregroundColor: NSColor(calibratedRed: 0.62, green: 0.64, blue: 0.70, alpha: 1.0),
+                .font: NSFont.systemFont(ofSize: 14)
             ]
         )
         field.cell?.usesSingleLineMode = true
         field.cell?.wraps = false
         field.cell?.isScrollable = true
         field.cell?.lineBreakMode = .byClipping
-        // Inset the text a few pixels for breathing room.
-        if let cell = field.cell as? NSTextFieldCell {
-            cell.title = text
-        }
         return field
     }
 
@@ -310,13 +345,52 @@ private struct DarkTextField: NSViewRepresentable {
         }
     }
 
-    final class Coordinator: NSObject, NSTextFieldDelegate {
+    final class Coordinator: NSObject, NSTextFieldDelegate, FocusReporter {
         let text: Binding<String>
-        init(text: Binding<String>) { self.text = text }
+        let onFocusChange: (Bool) -> Void
+
+        init(text: Binding<String>, onFocusChange: @escaping (Bool) -> Void) {
+            self.text = text
+            self.onFocusChange = onFocusChange
+        }
+
         func controlTextDidChange(_ obj: Notification) {
             guard let field = obj.object as? NSTextField else { return }
             text.wrappedValue = field.stringValue
         }
+
+        func focusDidChange(_ focused: Bool) {
+            DispatchQueue.main.async { [weak self] in self?.onFocusChange(focused) }
+        }
+    }
+}
+
+private protocol FocusReporter: AnyObject {
+    func focusDidChange(_ focused: Bool)
+}
+
+/// NSTextField subclass that tells the SwiftUI side when it gains/loses
+/// focus, so the surrounding overlay can draw a Storm Purple focus ring.
+private final class FocusReportingTextField: NSTextField {
+    weak var focusReporter: FocusReporter?
+
+    override func becomeFirstResponder() -> Bool {
+        let ok = super.becomeFirstResponder()
+        if ok {
+            focusReporter?.focusDidChange(true)
+            // Use Storm Purple as the insertion point colour by reaching
+            // into the field editor (NSTextField doesn't expose this on
+            // its own).
+            if let editor = currentEditor() as? NSTextView {
+                editor.insertionPointColor = NSColor(calibratedRed: 124 / 255, green: 87 / 255, blue: 252 / 255, alpha: 1.0)
+            }
+        }
+        return ok
+    }
+
+    override func textDidEndEditing(_ notification: Notification) {
+        super.textDidEndEditing(notification)
+        focusReporter?.focusDidChange(false)
     }
 }
 
@@ -406,9 +480,12 @@ private struct RatingSliderView: View {
 private struct FeedbackEditor: NSViewRepresentable {
     @Binding var text: String
 
-    private let darkBg = NSColor(calibratedRed: 0.10, green: 0.10, blue: 0.12, alpha: 1.0)
-    private let borderInactive = NSColor(calibratedRed: 0.18, green: 0.18, blue: 0.22, alpha: 1.0)
-    private let borderActive = NSColor(calibratedRed: 124 / 255, green: 87 / 255, blue: 252 / 255, alpha: 0.9)
+    // Light theme to match the rest of the v3.1 popup. The white-on-white
+    // typing bug we fought before is still avoided because we draw both
+    // the background AND the text colour explicitly on an NSTextView we own.
+    private let lightBg = NSColor(calibratedRed: 0.98, green: 0.98, blue: 0.99, alpha: 1.0)
+    private let borderInactive = NSColor(calibratedRed: 0.88, green: 0.88, blue: 0.92, alpha: 1.0)
+    private let borderActive = NSColor(calibratedRed: 124 / 255, green: 87 / 255, blue: 252 / 255, alpha: 0.7)
 
     func makeCoordinator() -> Coordinator { Coordinator(text: $text) }
 
@@ -417,7 +494,7 @@ private struct FeedbackEditor: NSViewRepresentable {
         scroll.borderType = .noBorder
         scroll.hasVerticalScroller = true
         scroll.drawsBackground = true
-        scroll.backgroundColor = darkBg
+        scroll.backgroundColor = lightBg
         scroll.wantsLayer = true
         scroll.layer?.cornerRadius = 12
         scroll.layer?.masksToBounds = true
@@ -429,21 +506,20 @@ private struct FeedbackEditor: NSViewRepresentable {
         textView.isSelectable = true
         textView.isRichText = false
         textView.allowsUndo = true
-        // The fix: explicit dark background AND white text on an NSTextView we
-        // own outright. SwiftUI's TextEditor draws its own white scroll
-        // content background ON TOP of any .background(...) modifier, which
-        // produced the white-on-white invisible-typing bug. Wrapping
-        // NSTextView keeps colours under our control on every macOS version.
+        // Light background AND dark text — both forced explicitly. SwiftUI's
+        // TextEditor draws its own scroll background that ignores
+        // .background(...) modifiers; rolling our own NSTextView keeps
+        // colours under our control on every macOS version.
         textView.drawsBackground = true
-        textView.backgroundColor = darkBg
-        textView.textColor = .white
+        textView.backgroundColor = lightBg
+        textView.textColor = NSColor(calibratedRed: 4 / 255, green: 4 / 255, blue: 6 / 255, alpha: 1.0)
         textView.insertionPointColor = NSColor(calibratedRed: 124 / 255, green: 87 / 255, blue: 252 / 255, alpha: 1.0)
         textView.font = NSFont.systemFont(ofSize: 14)
         textView.textContainerInset = NSSize(width: 8, height: 10)
         textView.delegate = context.coordinator
         textView.placeholderText = "Anything you'd like to share? (optional)"
-        textView.placeholderColor = NSColor(calibratedRed: 0.45, green: 0.45, blue: 0.48, alpha: 1.0)
-        textView.placeholderFont = NSFont.systemFont(ofSize: 14).italic()
+        textView.placeholderColor = NSColor(calibratedRed: 0.62, green: 0.64, blue: 0.70, alpha: 1.0)
+        textView.placeholderFont = NSFont.systemFont(ofSize: 14)
         textView.string = text
         textView.autoresizingMask = [.width]
         textView.isVerticallyResizable = true
