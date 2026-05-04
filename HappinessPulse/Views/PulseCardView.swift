@@ -2,6 +2,11 @@ import AppKit
 import SwiftUI
 
 struct PulseCardView: View {
+    /// If set, the department is baked in by the install (v3 per-dept
+    /// installer) and the card skips the picker step.  Nil on v2.1.0
+    /// laptops, where we show the 4-pill picker.
+    let installedDepartment: String?
+
     /// Submit callback — score, feedback, department, optional sub-department, completion.
     let onSubmit: (Int, String, String, String?, @escaping () -> Void) -> Void
 
@@ -15,24 +20,52 @@ struct PulseCardView: View {
 
     private let departments = ["Operations", "Revenue", "Service", "Technology"]
 
+    /// Dept used for submission. Comes from the install config in v3, or
+    /// from the picker selection in v2.1.0 fallback mode.
+    private var effectiveDepartment: String? {
+        installedDepartment ?? department
+    }
+
+    init(
+        installedDepartment: String? = nil,
+        onSubmit: @escaping (Int, String, String, String?, @escaping () -> Void) -> Void
+    ) {
+        self.installedDepartment = installedDepartment
+        self.onSubmit = onSubmit
+    }
+
     var body: some View {
         VStack(spacing: 14) {
             VStack(spacing: 8) {
                 HomeyLogoView()
                     .frame(width: 120)
 
-                Text("How happy are you at Homey?")
-                    .font(.system(size: 24, weight: .semibold))
-                    .foregroundColor(.white)
+                if let installedDepartment {
+                    // v3: dept baked into the install — show as a header.
+                    Text("\(installedDepartment) Pulse")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundColor(.white)
+                    Text("How happy are you at Homey today?")
+                        .font(.system(size: 13, weight: .regular))
+                        .foregroundColor(Color(red: 0.65, green: 0.65, blue: 0.7))
+                } else {
+                    Text("How happy are you at Homey?")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundColor(.white)
+                }
             }
             .padding(.bottom, 4)
 
-            DepartmentPicker(
-                departments: departments,
-                selected: $department
-            )
+            // v2.1.0 fallback: show the 4-pill picker only when no
+            // department was baked in at install time.
+            if installedDepartment == nil {
+                DepartmentPicker(
+                    departments: departments,
+                    selected: $department
+                )
+            }
 
-            if department != nil {
+            if effectiveDepartment != nil {
                 SubDepartmentField(text: $subDepartment)
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
@@ -130,14 +163,14 @@ struct PulseCardView: View {
     }
 
     private var canSubmit: Bool {
-        selectedScore != nil && department != nil
+        selectedScore != nil && effectiveDepartment != nil
     }
 
     private func submit() {
-        guard let selectedScore, let department, !loading else { return }
+        guard let selectedScore, let dept = effectiveDepartment, !loading else { return }
         loading = true
         let trimmedSub = subDepartment.trimmingCharacters(in: .whitespacesAndNewlines)
-        onSubmit(selectedScore, feedback, department, trimmedSub.isEmpty ? nil : trimmedSub) {
+        onSubmit(selectedScore, feedback, dept, trimmedSub.isEmpty ? nil : trimmedSub) {
             loading = false
         }
     }

@@ -14,13 +14,20 @@ final class SubmissionService {
         let secret: String?
     }
 
-    private let webhookURL = URL(string: "https://script.google.com/macros/s/AKfycbxE6GyN8jsybwc3_1hC2irErQeKO9Yu-j8hgglVXaHuPK8vsdDJwSMJbC2J7eOzsy7g/exec")
+    /// Original v2.1.0 webhook URL pointing at the EXISTING Google Sheet.
+    /// Used as a fallback when no config.json is present so old laptops that
+    /// auto-update to a v3 binary keep posting to the same place they
+    /// always did.  v3 installs override this via `~/homey-pulse/config.json`.
+    private let fallbackWebhookURL = URL(string: "https://script.google.com/macros/s/AKfycbxE6GyN8jsybwc3_1hC2irErQeKO9Yu-j8hgglVXaHuPK8vsdDJwSMJbC2J7eOzsy7g/exec")
     private let logger = PulseLogger.shared
     private let fileManager = FileManager.default
     private let encoder = JSONEncoder()
     private let nowProvider: () -> Date
     private let injectedNetworkPost: ((URL, Data, @escaping (Result<Void, Error>) -> Void) -> Void)?
     private let webhookSecret: String?
+    /// Set on each call from whatever the AppDelegate loaded out of
+    /// config.json; overrides fallbackWebhookURL when present.
+    private let configWebhookURL: URL?
     private lazy var pendingDirectory: URL = {
         baseDirectory.appendingPathComponent("pending", isDirectory: true)
     }()
@@ -39,13 +46,18 @@ final class SubmissionService {
         baseDirectory: URL? = nil,
         nowProvider: @escaping () -> Date = Date.init,
         networkPost: ((URL, Data, @escaping (Result<Void, Error>) -> Void) -> Void)? = nil,
-        webhookSecret: String? = ProcessInfo.processInfo.environment["HOMEY_PULSE_WEBHOOK_SECRET"]
+        webhookSecret: String? = ProcessInfo.processInfo.environment["HOMEY_PULSE_WEBHOOK_SECRET"],
+        configWebhookURL: URL? = nil
     ) {
         self.baseDirectory = baseDirectory ?? fileManager.homeDirectoryForCurrentUser.appendingPathComponent("homey-pulse", isDirectory: true)
         self.nowProvider = nowProvider
         self.injectedNetworkPost = networkPost
         self.webhookSecret = webhookSecret
+        self.configWebhookURL = configWebhookURL
     }
+
+    /// Resolved webhook URL: config-supplied first, then fallback.
+    private var webhookURL: URL? { configWebhookURL ?? fallbackWebhookURL }
 
     func submitPulse(
         score: Int,
@@ -66,7 +78,7 @@ final class SubmissionService {
             department: department,
             sub_department: subDepartment,
             timestamp: ISO8601DateFormatter().string(from: nowProvider()),
-            version: "2.1.0",
+            version: "3.0.0",
             os_version: ProcessInfo.processInfo.shortOSVersion,
             source: "macos-native-v2",
             secret: webhookSecret

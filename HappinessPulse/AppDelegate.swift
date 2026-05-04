@@ -5,7 +5,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let singleInstanceLock = SingleInstanceLock()
     private let pulseState = PulseState()
     private let logger = PulseLogger.shared
-    private let submissionService = SubmissionService()
+    /// v3 install-time config (department + webhook URL). Nil on v2.1.0
+    /// laptops, in which case the popup falls back to the picker UI and
+    /// the original webhook URL embedded in SubmissionService.
+    private let installConfig = PulseConfigLoader.load()
+    private lazy var submissionService = SubmissionService(
+        configWebhookURL: installConfig?.validatedWebhookURL
+    )
     private let fileManager = FileManager.default
 
     private let overlayController = PulseOverlayWindowController()
@@ -60,7 +66,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func showPulseCard() {
         showingUI = true
-        let view = PulseCardView { [weak self] score, feedback, department, subDepartment, done in
+        let preselectedDept = installConfig?.validatedDepartment
+        if let preselectedDept {
+            logger.info("Pulse opening with installed department: \(preselectedDept)")
+        } else {
+            logger.info("Pulse opening with picker (no v3 config.json found)")
+        }
+        let view = PulseCardView(
+            installedDepartment: preselectedDept
+        ) { [weak self] score, feedback, department, subDepartment, done in
             self?.submit(
                 score: score,
                 feedback: feedback,
