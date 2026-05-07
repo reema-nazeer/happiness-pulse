@@ -67,13 +67,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func showPulseCard() {
         showingUI = true
         let preselectedDept = installConfig?.validatedDepartment
-        if let preselectedDept {
-            logger.info("Pulse opening with installed department: \(preselectedDept)")
+        let webhookURL      = installConfig?.validatedWebhookURL
+
+        if let preselectedDept, let webhookURL {
+            logger.info("Pulse opening with installed department: \(preselectedDept) — fetching sub-departments")
+            SubDepartmentLoader.fetch(from: webhookURL, department: preselectedDept) { [weak self] subdepts in
+                self?.presentPulseCard(department: preselectedDept, subDepartments: subdepts)
+            }
         } else {
             logger.info("Pulse opening with picker (no v3 config.json found)")
+            presentPulseCard(department: nil, subDepartments: [])
         }
+    }
+
+    private func presentPulseCard(department: String?, subDepartments: [String]) {
         let view = PulseCardView(
-            installedDepartment: preselectedDept
+            installedDepartment: department,
+            subDepartments: subDepartments
         ) { [weak self] score, feedback, department, subDepartment, done in
             self?.submit(
                 score: score,

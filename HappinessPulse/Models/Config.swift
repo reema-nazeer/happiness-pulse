@@ -42,6 +42,68 @@ struct PulseConfig: Decodable {
     }
 }
 
+// MARK: - Sub-department loader
+
+enum SubDepartmentLoader {
+    private struct Response: Decodable {
+        let status: String
+        let sub_departments: [String]?
+    }
+
+    /// Fetches the sub-department list for `department` from the webhook.
+    /// Always calls back on the main queue. Returns an empty array on any
+    /// error or timeout (the card still works — it just hides the picker).
+    static func fetch(
+        from webhookURL: URL,
+        department: String,
+        completion: @escaping ([String]) -> Void
+    ) {
+        var comps = URLComponents(url: webhookURL, resolvingAgainstBaseURL: false)
+        comps?.queryItems = [
+            URLQueryItem(name: "action",     value: "subdepts"),
+            URLQueryItem(name: "department", value: department)
+        ]
+        guard let url = comps?.url else {
+            PulseLogger.shared.error("SubDepartmentLoader: could not build URL from \(webhookURL)")
+            DispatchQueue.main.async { completion([]) }
+            return
+        }
+
+        PulseLogger.shared.info("SubDepartmentLoader: fetching \(url.absoluteString)")
+
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest  = 15
+        config.timeoutIntervalForResource = 15
+        let session = URLSession(configuration: config)
+
+        session.dataTask(with: url) { data, response, error in
+            if let error {
+                PulseLogger.shared.error("SubDepartmentLoader: network error — \(error.localizedDescription)")
+                DispatchQueue.main.async { completion([]) }
+                return
+            }
+            guard let data else {
+                PulseLogger.shared.error("SubDepartmentLoader: no data received")
+                DispatchQueue.main.async { completion([]) }
+                return
+            }
+            let raw = String(data: data, encoding: .utf8) ?? "<non-utf8>"
+            PulseLogger.shared.info("SubDepartmentLoader: response — \(raw.prefix(300))")
+            do {
+                let decoded = try JSONDecoder().decode(Response.self, from: data)
+                let subdepts = decoded.sub_departments ?? []
+                PulseLogger.shared.info("SubDepartmentLoader: got \(subdepts.count) sub-departments")
+                DispatchQueue.main.async { completion(subdepts) }
+            } catch {
+                PulseLogger.shared.error("SubDepartmentLoader: decode error — \(error)")
+                DispatchQueue.main.async { completion([]) }
+            }
+        }.resume()
+    }
+}
+
+// MARK: - Config loader
+
 enum PulseConfigLoader {
     /// Default config path. Per-dept install scripts write here.
     static var defaultURL: URL {

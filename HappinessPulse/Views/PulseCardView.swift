@@ -9,12 +9,14 @@ struct PulseCardView: View {
 
     /// Submit callback — score, feedback, department, optional sub-department, completion.
     let onSubmit: (Int, String, String, String?, @escaping () -> Void) -> Void
+    /// Sub-departments fetched from the Config sheet. Empty = picker hidden.
+    let subDepartments: [String]
 
     @State private var selectedScore: Int?
     @State private var sliderValue: Double = 5
     @State private var feedback: String = ""
     @State private var department: String?
-    @State private var subDepartment: String = ""
+    @State private var selectedSubDepartment: String? = nil
     @State private var loading = false
     @State private var glowRotation = 0.0
 
@@ -28,9 +30,11 @@ struct PulseCardView: View {
 
     init(
         installedDepartment: String? = nil,
+        subDepartments: [String] = [],
         onSubmit: @escaping (Int, String, String, String?, @escaping () -> Void) -> Void
     ) {
         self.installedDepartment = installedDepartment
+        self.subDepartments = subDepartments
         self.onSubmit = onSubmit
     }
 
@@ -61,9 +65,12 @@ struct PulseCardView: View {
                 )
             }
 
-            if effectiveDepartment != nil {
-                SubDepartmentField(text: $subDepartment)
-                    .transition(.move(edge: .top).combined(with: .opacity))
+            if effectiveDepartment != nil && !subDepartments.isEmpty {
+                SubDepartmentPicker(
+                    subDepartments: subDepartments,
+                    selected: $selectedSubDepartment
+                )
+                .transition(.move(edge: .top).combined(with: .opacity))
             }
 
             if selectedScore == nil {
@@ -177,8 +184,7 @@ struct PulseCardView: View {
     private func submit() {
         guard let selectedScore, let dept = effectiveDepartment, !loading else { return }
         loading = true
-        let trimmedSub = subDepartment.trimmingCharacters(in: .whitespacesAndNewlines)
-        onSubmit(selectedScore, feedback, dept, trimmedSub.isEmpty ? nil : trimmedSub) {
+        onSubmit(selectedScore, feedback, dept, selectedSubDepartment) {
             loading = false
         }
     }
@@ -254,151 +260,106 @@ private struct DepartmentPicker: View {
     }
 }
 
-// MARK: - Optional sub-team free-text input
+// MARK: - Sub-department dropdown
 //
-// Styled to match the Homey platform's filter inputs: small uppercase
-// label above a tall, light, rounded input. White background, light
-// hairline border, Storm Purple focus ring and caret.
+// Custom styled dropdown matching the card's design language:
+// pill trigger button + popover list with white background and border.
 
-private struct SubDepartmentField: View {
-    @Binding var text: String
-    @State private var isFocused = false
+private struct SubDepartmentPicker: View {
+    let subDepartments: [String]
+    @Binding var selected: String?
+    @State private var isOpen = false
+
+    private let borderColor  = Color(red: 0.88, green: 0.88, blue: 0.92)
+    private let labelColor   = Color(red: 0.42, green: 0.44, blue: 0.50)
+    private let placeholderC = Color(red: 0.62, green: 0.64, blue: 0.70)
+    private let textColor    = Color(red: 0.04, green: 0.04, blue: 0.06)
+    private let accentColor  = Color(red: 0.40, green: 0.20, blue: 0.90)
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Team (optional)")
                 .font(.system(size: 11, weight: .medium))
-                .foregroundColor(Color(red: 0.42, green: 0.44, blue: 0.50))
+                .foregroundColor(labelColor)
 
-            // Empty placeholder per the v3.1 brief — the "Team (optional)"
-            // label above is enough; an example placeholder ("e.g.
-            // Conveyancing…") was confusing some users into thinking the
-            // example was the answer.
-            LightTextField(
-                text: $text,
-                placeholder: "",
-                onFocusChange: { isFocused = $0 }
-            )
-            .padding(.horizontal, 14)  // inset the text inside the rounded box
-            .frame(height: 44)
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color.white)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(
-                        isFocused
-                            ? Color(red: 124 / 255, green: 87 / 255, blue: 252 / 255).opacity(0.7)
-                            : Color(red: 0.88, green: 0.88, blue: 0.92),
-                        lineWidth: 1.2
-                    )
-            )
-            .animation(.easeInOut(duration: 0.15), value: isFocused)
-        }
-    }
-}
-
-/// NSTextField-backed input. SwiftUI's TextField on macOS has rendering
-/// quirks (the same family of bugs as TextEditor's white-on-white) so we
-/// drive the underlying NSTextField directly. Light theme: white background,
-/// dark text, Storm Purple caret.
-private struct LightTextField: NSViewRepresentable {
-    @Binding var text: String
-    let placeholder: String
-    let onFocusChange: (Bool) -> Void
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(text: $text, onFocusChange: onFocusChange)
-    }
-
-    func makeNSView(context: Context) -> NSTextField {
-        let field = FocusReportingTextField()
-        field.delegate = context.coordinator
-        field.focusReporter = context.coordinator
-        field.isEditable = true
-        field.isSelectable = true
-        field.isBezeled = false
-        field.isBordered = false
-        // Background is drawn by the SwiftUI overlay so the field itself
-        // stays transparent — this lets the rounded corners line up.
-        field.drawsBackground = false
-        field.textColor = NSColor(calibratedRed: 4 / 255, green: 4 / 255, blue: 6 / 255, alpha: 1.0)
-        field.font = NSFont.systemFont(ofSize: 14)
-        field.focusRingType = .none
-        field.placeholderAttributedString = NSAttributedString(
-            string: placeholder,
-            attributes: [
-                .foregroundColor: NSColor(calibratedRed: 0.62, green: 0.64, blue: 0.70, alpha: 1.0),
-                .font: NSFont.systemFont(ofSize: 14)
-            ]
-        )
-        field.cell?.usesSingleLineMode = true
-        field.cell?.wraps = false
-        field.cell?.isScrollable = true
-        field.cell?.lineBreakMode = .byClipping
-        return field
-    }
-
-    func updateNSView(_ nsView: NSTextField, context: Context) {
-        if nsView.stringValue != text {
-            nsView.stringValue = text
-        }
-    }
-
-    final class Coordinator: NSObject, NSTextFieldDelegate, FocusReporter {
-        let text: Binding<String>
-        let onFocusChange: (Bool) -> Void
-
-        init(text: Binding<String>, onFocusChange: @escaping (Bool) -> Void) {
-            self.text = text
-            self.onFocusChange = onFocusChange
-        }
-
-        func controlTextDidChange(_ obj: Notification) {
-            guard let field = obj.object as? NSTextField else { return }
-            text.wrappedValue = field.stringValue
-        }
-
-        func focusDidChange(_ focused: Bool) {
-            DispatchQueue.main.async { [weak self] in self?.onFocusChange(focused) }
-        }
-    }
-}
-
-private protocol FocusReporter: AnyObject {
-    func focusDidChange(_ focused: Bool)
-}
-
-/// NSTextField subclass that tells the SwiftUI side when it gains/loses
-/// focus, so the surrounding overlay can draw a Storm Purple focus ring.
-private final class FocusReportingTextField: NSTextField {
-    weak var focusReporter: FocusReporter?
-
-    override func becomeFirstResponder() -> Bool {
-        let ok = super.becomeFirstResponder()
-        if ok {
-            focusReporter?.focusDidChange(true)
-            // Use Storm Purple as the insertion point colour by reaching
-            // into the field editor (NSTextField doesn't expose this on
-            // its own).
-            if let editor = currentEditor() as? NSTextView {
-                editor.insertionPointColor = NSColor(calibratedRed: 124 / 255, green: 87 / 255, blue: 252 / 255, alpha: 1.0)
+            // Trigger button
+            Button(action: { isOpen.toggle() }) {
+                HStack(spacing: 0) {
+                    Text(selected ?? "Select team...")
+                        .font(.system(size: 14))
+                        .foregroundColor(selected != nil ? textColor : placeholderC)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    Spacer(minLength: 8)
+                    Image(systemName: isOpen ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(labelColor)
+                }
+                .padding(.horizontal, 14)
+                .frame(height: 44)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color.white)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(isOpen ? accentColor : borderColor, lineWidth: isOpen ? 1.5 : 1.2)
+                )
+            }
+            .buttonStyle(.plain)
+            .popover(isPresented: $isOpen, arrowEdge: .bottom) {
+                dropdownList
             }
         }
-        return ok
     }
 
-    override func textDidEndEditing(_ notification: Notification) {
-        super.textDidEndEditing(notification)
-        focusReporter?.focusDidChange(false)
+    private var dropdownList: some View {
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 0) {
+                // "None" option
+                dropdownRow(label: "None", isSelected: selected == nil) {
+                    selected = nil
+                    isOpen = false
+                }
+                Divider()
+                    .padding(.horizontal, 12)
+                ForEach(subDepartments, id: \.self) { dept in
+                    dropdownRow(label: dept, isSelected: selected == dept) {
+                        selected = dept
+                        isOpen = false
+                    }
+                }
+            }
+            .padding(.vertical, 6)
+        }
+        .frame(minWidth: 220, maxHeight: 280)
+        .background(Color.white)
     }
-}
 
-private extension NSFont {
-    func italic() -> NSFont {
-        let descriptor = fontDescriptor.withSymbolicTraits(.italic)
-        return NSFont(descriptor: descriptor, size: pointSize) ?? self
+    private func dropdownRow(label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Text(label)
+                    .font(.system(size: 13))
+                    .foregroundColor(isSelected ? accentColor : textColor)
+                    .lineLimit(1)
+                Spacer()
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(accentColor)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 9)
+            .contentShape(Rectangle())
+            .background(
+                isSelected
+                    ? accentColor.opacity(0.07)
+                    : Color.clear
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
 
